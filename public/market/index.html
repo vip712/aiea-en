@@ -48,6 +48,10 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .pill{display:inline-block;padding:1px 10px;border-radius:999px;font-size:.78rem;font-weight:700;border:1px solid var(--line)}
 .pill.funded{color:var(--acc)} .pill.delivered{color:var(--ok)} .pill.disputed{color:var(--acc2)} .pill.done{color:var(--mut)}
 input[type=number]{background:#0b0f18;border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:7px 10px;width:90px}
+label.fl{display:block;margin:14px 0 4px;color:var(--mut);font-size:.9rem}
+.sellform input[type=text],.sellform select,.sellform textarea{width:100%;background:#0b0f18;border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:9px 12px;font:inherit}
+.sellform input[type=number]{width:100%;padding:9px 12px}
+.sellform textarea{min-height:64px;resize:vertical}
 .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
 .step{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;color:var(--mut)}
 .step b{color:var(--acc)}
@@ -60,7 +64,7 @@ footer{margin-top:56px;border-top:1px solid var(--line);padding-top:20px;color:v
 
 <header>
   <div class="brand">AIEA <span>Marketplace</span></div>
-  <nav><a href="/">← Back to AIEA Services</a></nav>
+  <nav><a href="/">← Back to AIEA Services</a> · <a href="#sell">Sell on the Marketplace 我要上架</a></nav>
 </header>
 
 <div class="banner">⚠️ TESTNET DEMO — Polygon Amoy test network. All tokens are test tokens with NO real value. Do NOT send real funds.
@@ -101,9 +105,57 @@ footer{margin-top:56px;border-top:1px solid var(--line);padding-top:20px;color:v
   </div>
 </div>
 
+<div id="shared-wrap" class="hidden">
+<h2>Shared Listing · 分享商品</h2>
+<p class="sub">A listing shared with you via link. Buying creates a real escrow order on the testnet contract, paid to the seller address carried in the link. 通过链接分享给你的商品——购买会在测试网合约上创建真实托管订单，收款卖家地址来自链接。</p>
+<div id="shared"></div>
+</div>
+
 <h2>Shops &amp; listings · 店铺与商品</h2>
 <p class="sub">Demo catalog — buying creates a real order on the Amoy testnet escrow contract, paid to a demo seller address. 演示目录——购买会在 Amoy 测试网托管合约上创建真实订单，卖家为演示地址。</p>
 <div id="catalog"></div>
+
+<h2>Community Listings · 用户上架</h2>
+<p class="sub">Listings published from a browser like yours via the Sell section below. 访客通过下方上架区发布的商品。</p>
+<div id="community"></div>
+
+<h2 id="sell">Sell on the Marketplace · 我要上架</h2>
+<div class="panel sellform">
+  <p style="color:var(--mut);margin-top:0">List your own virtual good or service. Your connected wallet address becomes the seller — buyers pay it through the escrow contract.<br>上架你自己的虚拟物品或服务：当前连接的钱包地址即卖家地址，买家通过托管合约向该地址付款。</p>
+  <p style="color:var(--acc2);font-size:.92rem">Demo note: in this testnet demo, listings are stored in your browser and shared via link; the production version stores listings in the platform catalog.<br>演示说明：本测试网演示版中，商品信息保存在你的浏览器中、通过链接分享；正式版将保存在平台商品目录中。</p>
+  <form id="sell-form">
+    <label class="fl">Seller address 卖家地址（= connected wallet 当前连接的钱包）</label>
+    <div class="mono" id="sell-addr">Not connected — connect your wallet above first. 未连接——请先在上方连接钱包。</div>
+    <label class="fl" for="f-shop">Shop name 店铺名</label>
+    <input type="text" id="f-shop" maxlength="60" placeholder="e.g. My Studio">
+    <label class="fl" for="f-title">Item title 商品标题 *</label>
+    <input type="text" id="f-title" maxlength="120" placeholder="e.g. Logo design package">
+    <label class="fl" for="f-category">Category 类别</label>
+    <select id="f-category">
+      <option>Digital Content</option>
+      <option>Subscriptions</option>
+      <option>Dev &amp; Design Services</option>
+      <option>Consulting</option>
+      <option>Other Virtual Goods</option>
+    </select>
+    <label class="fl" for="f-price">Price 价格 *</label>
+    <input type="number" id="f-price" min="0" step="any" placeholder="e.g. 25">
+    <p id="price-warn" class="hidden" style="color:var(--acc2);margin:4px 0 0;font-size:.9rem">⚠️ Above the pilot single-order cap of 500 — the escrow contract will block checkout until the cap is raised. 超过试点单笔上限 500——上限提高前，合约会拦截此类订单的下单。</p>
+    <label class="fl" for="f-token">Token 代币</label>
+    <select id="f-token">
+      <option value="TUSDT">tUSDT (testnet)</option>
+      <option value="TUSDC">tUSDC (testnet)</option>
+    </select>
+    <label class="fl" for="f-desc">Description 商品描述</label>
+    <textarea id="f-desc" maxlength="500" placeholder="What is it? 卖的是什么？"></textarea>
+    <label class="fl" for="f-delivery">Delivery note 交付说明</label>
+    <textarea id="f-delivery" maxlength="500" placeholder="What the buyer gets &amp; how · 买家将收到什么、如何交付"></textarea>
+    <div class="btnrow" style="margin-top:16px">
+      <button type="submit">Publish listing 发布上架</button>
+    </div>
+    <p id="sell-msg" style="margin:10px 0 0"></p>
+  </form>
+</div>
 
 <h2>Order activity · 操作日志</h2>
 <div id="log">Waiting for actions… 等待操作。</div>
@@ -211,6 +263,164 @@ const fmtDate = ts => ts && Number(ts) > 0 ? new Date(Number(ts)*1000).toLocaleS
 const short = a => a ? a.slice(0,6) + "…" + a.slice(-4) : "";
 const txLink = h => `${SCAN}/tx/${h}`;
 
+/* ============ USER LISTINGS (localStorage + share links; no backend in this phase) ============ */
+const LS_KEY = "aiea_market_listings_v1";
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const tokenSymbol = addr => (addr && String(addr).toLowerCase() === TUSDC.toLowerCase()) ? "tUSDC" : "tUSDT";
+function validListing(l){
+  if (!l || typeof l !== "object") return false;
+  if (typeof l.title !== "string" || !l.title.trim()) return false;
+  const price = Number(l.price);
+  if (!isFinite(price) || price <= 0) return false;
+  if (typeof l.seller !== "string" || !/^0x[0-9a-fA-F]{40}$/.test(l.seller)) return false;
+  const tk = String(l.token || "").toLowerCase();
+  if (tk !== TUSDT.toLowerCase() && tk !== TUSDC.toLowerCase()) return false;
+  return true;
+}
+function cleanListing(l){
+  const s = (v, n) => String(v == null ? "" : v).slice(0, n);
+  return {
+    shop: s(l.shop, 60).trim() || "Community Shop",
+    title: s(l.title, 120),
+    category: s(l.category, 40),
+    price: Number(l.price),
+    token: String(l.token).toLowerCase() === TUSDC.toLowerCase() ? TUSDC : TUSDT,
+    desc: s(l.desc, 500),
+    delivery: s(l.delivery, 500),
+    seller: l.seller,
+    created: Number(l.created) || Date.now()
+  };
+}
+function loadListings(){
+  try{
+    const arr = JSON.parse(localStorage.getItem(LS_KEY) || "[]");
+    return Array.isArray(arr) ? arr.filter(validListing).map(cleanListing) : [];
+  }catch(e){ return []; }
+}
+function saveListings(arr){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(arr)); }
+  catch(e){ log("Could not save the listing in this browser. 浏览器无法保存上架信息。"); }
+}
+function b64urlEncode(str){
+  const bytes = new TextEncoder().encode(str); let bin = "";
+  bytes.forEach(b => bin += String.fromCharCode(b));
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function b64urlDecode(s){
+  s = String(s).replace(/-/g, "+").replace(/_/g, "/");
+  while (s.length % 4) s += "=";
+  const bin = atob(s);
+  const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+function shareUrl(l){ return "https://aiea.cc.cd/market/#l=" + b64urlEncode(JSON.stringify(l)); }
+
+function listingCard(l, opts){
+  opts = opts || {};
+  const c = document.createElement("div"); c.className = "card";
+  const h = document.createElement("h3"); h.textContent = l.title; c.appendChild(h);
+  const pr = document.createElement("div"); pr.className = "price";
+  pr.appendChild(document.createTextNode(String(l.price) + " "));
+  const sm = document.createElement("small"); sm.textContent = tokenSymbol(l.token) + " (testnet)"; pr.appendChild(sm);
+  c.appendChild(pr);
+  if (l.category){ const cat = document.createElement("p"); cat.textContent = "Category 类别: " + l.category; c.appendChild(cat); }
+  if (l.desc){ const p = document.createElement("p"); p.textContent = l.desc; c.appendChild(p); }
+  if (l.delivery){ const p = document.createElement("p"); p.textContent = "Delivery 交付: " + l.delivery; c.appendChild(p); }
+  const sp = document.createElement("p"); sp.style.fontSize = ".85rem";
+  sp.textContent = "Seller 卖家: " + short(l.seller) + " (" + l.seller + ")"; c.appendChild(sp);
+  const row = document.createElement("div"); row.className = "btnrow";
+  const b = document.createElement("button"); b.textContent = "Buy with escrow 担保购买";
+  b.onclick = () => buy({ name: l.title, price: l.price }, l.seller, l.token, tokenSymbol(l.token));
+  row.appendChild(b);
+  const sh = document.createElement("button"); sh.className = "ghost"; sh.textContent = "Copy share link 复制分享链接";
+  sh.onclick = async () => {
+    const url = shareUrl(l);
+    try{ await navigator.clipboard.writeText(url); log("Share link copied 分享链接已复制: " + url); }
+    catch(e){ log("Share link 分享链接: " + url); window.prompt("Copy this share link 复制分享链接:", url); }
+  };
+  row.appendChild(sh);
+  if (opts.removable){
+    const rm = document.createElement("button"); rm.className = "warn"; rm.textContent = "Remove 下架";
+    rm.onclick = () => {
+      const arr = loadListings().filter(x => !(x.created === l.created && x.seller === l.seller && x.title === l.title));
+      saveListings(arr); renderCommunity();
+      log("Listing removed 已下架: " + l.title);
+    };
+    row.appendChild(rm);
+  }
+  c.appendChild(row);
+  return c;
+}
+function renderCommunity(){
+  const root = $("community"); if (!root) return;
+  const arr = loadListings();
+  root.innerHTML = "";
+  if (!arr.length){
+    const p = document.createElement("p"); p.style.color = "var(--mut)";
+    p.textContent = "No community listings yet — be the first to list in the Sell section below. 暂无用户上架——在下方上架区发布你的第一个商品。";
+    root.appendChild(p); return;
+  }
+  const byShop = {};
+  arr.forEach(l => { (byShop[l.shop] = byShop[l.shop] || []).push(l); });
+  Object.keys(byShop).forEach(shopName => {
+    const wrap = document.createElement("div"); wrap.className = "shop";
+    const h = document.createElement("h3"); h.textContent = shopName; wrap.appendChild(h);
+    const tag = document.createElement("div"); tag.className = "tag"; tag.textContent = "Community shop 用户店铺"; wrap.appendChild(tag);
+    const cards = document.createElement("div"); cards.className = "cards";
+    byShop[shopName].forEach(l => cards.appendChild(listingCard(l, { removable: true })));
+    wrap.appendChild(cards); root.appendChild(wrap);
+  });
+}
+function renderShared(){
+  const wrap = $("shared-wrap"); if (!wrap) return;
+  const m = location.hash.match(/#l=([A-Za-z0-9\-_]+)/);
+  if (!m) return;
+  let l = null;
+  try{ const obj = JSON.parse(b64urlDecode(m[1])); if (validListing(obj)) l = cleanListing(obj); }catch(e){ l = null; }
+  if (!l) return;
+  wrap.classList.remove("hidden");
+  const root = $("shared"); root.innerHTML = "";
+  const shopWrap = document.createElement("div"); shopWrap.className = "shop";
+  const h = document.createElement("h3"); h.textContent = l.shop; shopWrap.appendChild(h);
+  const tag = document.createElement("div"); tag.className = "tag"; tag.textContent = "Shared via link 链接分享 · seller from link 卖家来自链接"; shopWrap.appendChild(tag);
+  const cards = document.createElement("div"); cards.className = "cards";
+  cards.appendChild(listingCard(l, { removable: false }));
+  shopWrap.appendChild(cards); root.appendChild(shopWrap);
+}
+function onSellSubmit(e){
+  e.preventDefault();
+  const msg = $("sell-msg");
+  const fail = t => { msg.style.color = "var(--bad)"; msg.textContent = t; };
+  if (!account){
+    fail("Connect your wallet first — the seller address is your wallet address. 请先连接钱包——卖家地址就是你的钱包地址。");
+    connect().catch(err => log("Connect failed 连接失败: " + (err.shortMessage || err.message)));
+    return;
+  }
+  const title = $("f-title").value.trim();
+  const price = Number($("f-price").value);
+  if (!title){ fail("Item title is required. 请填写商品标题。"); return; }
+  if (!isFinite(price) || price <= 0){ fail("Enter a positive price. 请填写大于 0 的价格。"); return; }
+  const l = cleanListing({
+    shop: $("f-shop").value.trim(),
+    title: title,
+    category: $("f-category").value,
+    price: price,
+    token: $("f-token").value === "TUSDC" ? TUSDC : TUSDT,
+    desc: $("f-desc").value.trim(),
+    delivery: $("f-delivery").value.trim(),
+    seller: account,
+    created: Date.now()
+  });
+  const arr = loadListings(); arr.push(l); saveListings(arr);
+  renderCommunity();
+  msg.style.color = "var(--ok)";
+  msg.textContent = "Published ✓ — find it under Community Listings above; use its Copy share link button to share it. 已上架——见上方“用户上架”区，可用“复制分享链接”分享。";
+  log("Listing published 上架成功: " + l.title + " — " + l.price + " " + tokenSymbol(l.token) + " · seller " + l.seller);
+  if (price > 500) log("Note: this price is above the pilot single-order cap (500); the contract will block checkout until caps are raised. 注意：价格超过试点单笔上限 500，上限提高前合约会拦截下单。");
+  $("f-title").value = ""; $("f-price").value = ""; $("f-desc").value = ""; $("f-delivery").value = "";
+  $("price-warn").classList.add("hidden");
+}
+
 /* ============ STATUS PANEL (no wallet needed) ============ */
 async function loadStatus(){
   try{
@@ -267,6 +477,7 @@ async function ensureNetwork(){
 async function refreshWalletUI(){
   if (!account) return;
   $("w-addr").textContent = account;
+  const sa = $("sell-addr"); if (sa) sa.textContent = account;
   const net = await signer.provider.getNetwork();
   $("w-net").textContent = Number(net.chainId) === CHAIN_ID ? "Polygon Amoy (80002)" : "Wrong network — chain " + net.chainId;
   const usdt = new ethers.Contract(TUSDT, ERC20_ABI, readProvider);
@@ -305,24 +516,25 @@ async function runTx(label, fn){
 }
 
 /* ============ BUY FLOW ============ */
-async function buy(item, seller){
+async function buy(item, seller, tokenAddr, tokenSym){
   try{
+    tokenAddr = tokenAddr || TUSDT; tokenSym = tokenSym || "tUSDT";
     if (!signer){ await connect(); if (!signer) return; }
     if (account.toLowerCase() === seller.toLowerCase()){
-      log("You are connected as the demo seller address — switch to a different wallet to act as buyer. 当前连接的是演示卖家地址，请换一个钱包当买家。"); return;
+      log("You are connected as the seller address of this listing — switch to a different wallet to act as buyer. 当前连接的是该商品的卖家地址，请换一个钱包当买家。"); return;
     }
     const amount = ethers.parseUnits(String(item.price), 6);
-    const token = new ethers.Contract(TUSDT, ERC20_ABI, signer);
-    const bal = await new ethers.Contract(TUSDT, ERC20_ABI, readProvider).balanceOf(account);
-    if (bal < amount){ log("Insufficient tUSDT balance (" + fmt(bal) + "). Test tokens only — the rehearsal wallets hold the supply. tUSDT 余额不足。"); return; }
+    const token = new ethers.Contract(tokenAddr, ERC20_ABI, signer);
+    const bal = await new ethers.Contract(tokenAddr, ERC20_ABI, readProvider).balanceOf(account);
+    if (bal < amount){ log("Insufficient " + tokenSym + " balance (" + fmt(bal) + "). Test tokens only — the rehearsal wallets hold the supply. " + tokenSym + " 余额不足。"); return; }
     const allowance = await token.allowance(account, ESCROW);
     if (allowance < amount){
-      await runTx("Approve tUSDT 授权", () => token.approve(ESCROW, amount));
+      await runTx("Approve " + tokenSym + " 授权", () => token.approve(ESCROW, amount));
     }
     let win = 259200n;
     try{ win = await escrowRead.defaultDeliveryWindow(); }catch(e){}
-    const rc = await runTx("Create order 创建订单: " + item.name + " — " + item.price + " tUSDT",
-      () => escrowWrite.createOrder(seller, TUSDT, amount, win));
+    const rc = await runTx("Create order 创建订单: " + item.name + " — " + item.price + " " + tokenSym,
+      () => escrowWrite.createOrder(seller, tokenAddr, amount, win));
     let orderId = null;
     for (const lg of rc.logs){
       try{ const p = escrowRead.interface.parseLog(lg); if (p && p.name === "OrderCreated"){ orderId = p.args.orderId; break; } }catch(e){}
@@ -370,7 +582,7 @@ async function loadOrders(){
       const div = document.createElement("div"); div.className = "order";
       const pillCls = st===1?"funded":st===2?"delivered":st===3?"disputed":"done";
       div.innerHTML =
-        `<h4>Order #${id} · ${fmt(o.amount)} tUSDT <span class="pill ${pillCls}">${STATUS[st]}</span></h4>` +
+        `<h4>Order #${id} · ${fmt(o.amount)} ${tokenSymbol(o.token)} <span class="pill ${pillCls}">${STATUS[st]}</span></h4>` +
         `<div class="mono">buyer 买家 ${o.buyer}<br>seller 卖家 ${o.seller}</div>` +
         `<div style="color:var(--mut);font-size:.9rem">created ${fmtDate(o.createdAt)} · delivery deadline 交付截止 ${fmtDate(o.deliveryDeadline)}` +
         (Number(o.deliveredAt) ? ` · delivered ${fmtDate(o.deliveredAt)} · confirm by 确认截止 ${fmtDate(o.confirmDeadline)} · extensions 延长 ${Number(o.extensionsUsed)}/4` : "") +
@@ -410,7 +622,16 @@ $("btn-load-orders").onclick = () => loadOrders();
 
 /* ============ INIT ============ */
 renderCatalog();
+renderCommunity();
+renderShared();
 loadStatus();
+const sellFormEl = $("sell-form");
+if (sellFormEl) sellFormEl.addEventListener("submit", onSellSubmit);
+const priceInputEl = $("f-price");
+if (priceInputEl) priceInputEl.addEventListener("input", () => {
+  const v = Number(priceInputEl.value);
+  $("price-warn").classList.toggle("hidden", !(isFinite(v) && v > 500));
+});
 if (window.ethereum){
   window.ethereum.on && window.ethereum.on("accountsChanged", () => location.reload());
   window.ethereum.on && window.ethereum.on("chainChanged", () => location.reload());
