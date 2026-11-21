@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crypto Escrow Marketplace (Testnet Demo) — AIEA</title>
+<meta name="description" content="Multi-seller marketplace with smart-contract escrow on Polygon Amoy testnet. Demo only — no real funds.">
+<style>
+:root{color-scheme:dark;--bg:#0f1420;--panel:#171e2e;--line:#26314a;--txt:#e8eaf0;--mut:#9aa3b2;--acc:#4da3ff;--acc2:#ffb84d;--ok:#3ecf8e;--bad:#ff7a7a}
+*{box-sizing:border-box}
+body{font-family:system-ui,-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--txt);margin:0;line-height:1.65}
+.wrap{max-width:1020px;margin:0 auto;padding:28px 20px 64px}
+a{color:var(--acc)}
+header{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+.brand{font-weight:700;font-size:1.1rem}
+.brand span{color:var(--acc)}
+.banner{background:#3a2c07;border:1px solid var(--acc2);color:#ffd98a;border-radius:12px;padding:14px 18px;margin:22px 0;font-weight:600}
+.banner small{display:block;font-weight:400;color:#e8cf9a}
+h1{font-size:1.9rem;line-height:1.3;margin:18px 0 6px}
+h2{font-size:1.35rem;margin:42px 0 6px}
+.sub{color:var(--mut);margin:0 0 16px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin-top:14px}
+.panel h3{margin:0 0 8px}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.86rem;word-break:break-all}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+.stat{background:#0b0f18;border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.stat b{display:block;font-size:1.25rem}
+.stat span{color:var(--mut);font-size:.85rem}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px}
+.card h3{margin:0 0 4px;font-size:1.05rem}
+.price{font-size:1.45rem;font-weight:800;margin:6px 0}
+.price small{font-size:.82rem;color:var(--mut);font-weight:400}
+.card p{color:var(--mut);margin:6px 0 12px;font-size:.93rem}
+.shop{margin-top:26px}
+.shop h3{font-size:1.15rem;margin:0 0 2px}
+.shop .tag{color:var(--acc2);font-size:.85rem}
+button,.btn{background:var(--acc);color:#06121f;font-weight:700;border:none;padding:10px 18px;border-radius:10px;cursor:pointer;font-size:.95rem}
+button:hover,.btn:hover{opacity:.9}
+button.ghost{background:transparent;color:var(--acc);border:1px solid var(--acc)}
+button.warn{background:transparent;color:var(--acc2);border:1px solid var(--acc2)}
+button:disabled{opacity:.45;cursor:not-allowed}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.btnrow button{padding:7px 12px;font-size:.86rem}
+#log{background:#0b0f18;border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:.88rem;white-space:pre-wrap;word-break:break-all;max-height:260px;overflow:auto}
+.order{border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-top:12px;background:#0b0f18}
+.order h4{margin:0 0 4px}
+.pill{display:inline-block;padding:1px 10px;border-radius:999px;font-size:.78rem;font-weight:700;border:1px solid var(--line)}
+.pill.funded{color:var(--acc)} .pill.delivered{color:var(--ok)} .pill.disputed{color:var(--acc2)} .pill.done{color:var(--mut)}
+input[type=number]{background:#0b0f18;border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:7px 10px;width:90px}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.step{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;color:var(--mut)}
+.step b{color:var(--acc)}
+footer{margin-top:56px;border-top:1px solid var(--line);padding-top:20px;color:var(--mut);font-size:.9rem}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="brand">AIEA <span>Marketplace</span></div>
+  <nav><a href="/">← Back to AIEA Services</a></nav>
+</header>
+
+<div class="banner">⚠️ TESTNET DEMO — Polygon Amoy test network. All tokens are test tokens with NO real value. Do NOT send real funds.
+<small>测试网演示——Polygon Amoy 测试网络。所有代币均为无真实价值的测试币，请勿转入真实资金。</small></div>
+
+<h1>Crypto Escrow Marketplace</h1>
+<p class="sub">Anyone can open a shop and sell virtual goods &amp; services. Payment is locked in a smart-contract escrow — never in a platform wallet — and released by the contract's rules: buyer confirms, or 7 days pass, or arbitration decides.<br>
+任何人都可开店出售虚拟物品与服务。货款锁进智能合约托管（不进平台钱包），按合约规则结算：买家确认、或 7 天到期、或仲裁裁决。</p>
+
+<h2>Platform status · 平台状态 (live from contract)</h2>
+<div class="panel">
+  <div class="grid">
+    <div class="stat"><b id="st-commission">…</b><span>Trading fee 交易费</span></div>
+    <div class="stat"><b id="st-arbfee">…</b><span>Arbitration fee 仲裁费</span></div>
+    <div class="stat"><b id="st-escrowed">…</b><span>Total escrowed 当前托管总额 (units)</span></div>
+    <div class="stat"><b id="st-orders">…</b><span>Orders created 累计订单</span></div>
+    <div class="stat"><b id="st-caps">…</b><span>Pilot caps 单笔 / 总额上限</span></div>
+    <div class="stat"><b id="st-window">…</b><span>Confirm window 确认期</span></div>
+  </div>
+  <p class="mono" style="margin:14px 0 0">Escrow contract 托管合约：<a id="st-contract" href="#" target="_blank" rel="noopener">…</a></p>
+  <p id="st-error" style="color:var(--bad);margin:8px 0 0"></p>
+</div>
+
+<h2>Wallet · 钱包</h2>
+<div class="panel">
+  <div id="wallet-none">
+    <p style="color:var(--mut);margin-top:0">Connect a browser wallet (MetaMask or any injected wallet) to buy, sell and manage orders. The page reads the contract without a wallet; actions need one.<br>连接浏览器钱包（MetaMask 等）后即可购买与管理订单。无钱包时可浏览，但不能操作。</p>
+    <button id="btn-connect">Connect Wallet 连接钱包</button>
+    <p id="nowallet" class="hidden" style="color:var(--bad)">No wallet detected. Please install MetaMask (or another Web3 wallet) and reload this page. 未检测到钱包，请安装 MetaMask 后刷新页面。</p>
+  </div>
+  <div id="wallet-on" class="hidden">
+    <p style="margin:0">Connected 已连接：<span class="mono" id="w-addr"></span></p>
+    <p style="margin:6px 0 0;color:var(--mut)">Network 网络：<span id="w-net"></span> · tUSDT: <b id="w-usdt">…</b> · tUSDC: <b id="w-usdc">…</b></p>
+    <div class="btnrow">
+      <button class="ghost" id="btn-refresh-bal">Refresh balances 刷新余额</button>
+      <button class="ghost" id="btn-switch">Switch to Polygon Amoy 切换网络</button>
+    </div>
+  </div>
+</div>
+
+<h2>Shops &amp; listings · 店铺与商品</h2>
+<p class="sub">Demo catalog — buying creates a real order on the Amoy testnet escrow contract, paid to a demo seller address. 演示目录——购买会在 Amoy 测试网托管合约上创建真实订单，卖家为演示地址。</p>
+<div id="catalog"></div>
+
+<h2>Order activity · 操作日志</h2>
+<div id="log">Waiting for actions… 等待操作。</div>
+
+<h2>My orders · 我的订单</h2>
+<div class="panel">
+  <p style="color:var(--mut);margin-top:0">Orders where your connected wallet is buyer or seller, read from on-chain events. 与当前钱包地址相关的订单（链上事件读取）。</p>
+  <button id="btn-load-orders" disabled>Load my orders 读取我的订单</button>
+  <div id="orders"></div>
+</div>
+
+<h2>How it works · 规则</h2>
+<div class="steps">
+  <div class="step"><b>1. Escrow, not custody.</b><br>Buyer pays into the smart contract. The platform never holds your money.<br>买家把款锁进合约，平台不经手资金。</div>
+  <div class="step"><b>2. 7-day window.</b><br>After the seller submits delivery, the buyer has 7 days to confirm receipt — or the contract releases payment automatically.<br>卖家交付后买家有 7 天确认期，到期自动放款。</div>
+  <div class="step"><b>3. Extensions.</b><br>Buyer may extend the window up to 4 times (+7 days each) — 35 days maximum to inspect and negotiate.<br>买家可延长最多 4 次（每次 +7 天），最长 35 天。</div>
+  <div class="step"><b>4. Disputes &amp; arbitration.</b><br>Either side can freeze an order. If negotiation fails, the arbitrator sets a refund ratio; the arbitration fee (6% launch) is deducted first, the rest is split by that ratio — both sides share the cost.<br>任一方可冻结订单；协商不成由仲裁定退款比例，先扣仲裁费（开业 6%），余款按比例分，双方共担成本。</div>
+  <div class="step"><b>5. Wallet = identity.</b><br>No KYC, no sign-up forms. Your wallet address is your account, your reputation and your mailbox.<br>无 KYC、无注册表，钱包地址就是账号、信誉与凭证。</div>
+  <div class="step"><b>6. Fees.</b><br>Trading fee 1% at launch (standard 5%). Undelivered orders are refunded in full, free.<br>交易费开业 1%（标准 5%）；卖家未交付全额免费退款。</div>
+</div>
+
+<footer>
+  <p>Testnet demo of the AIEA escrow marketplace. Contract rules are enforced on-chain; this page is only an interface.<br>本页仅为界面，规则由链上合约执行。</p>
+  <p>Contact: <a href="mailto:aieiu@outlook.com">aieiu@outlook.com</a> · Telegram <a href="https://t.me/aiiox_bot" target="_blank" rel="noopener">@aiiox_bot</a></p>
+</footer>
+
+</div>
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+<script>
+"use strict";
+/* ============ CONFIG (edit catalog & addresses here) ============ */
+const ESCROW   = "0xe4eFe19E33cA24Ff7cCc24545e1415ccA6fd8D52";
+const TUSDT    = "0x8Ba408dF8c5F1D55205b1114Ba2BF36bc2B6103b";
+const TUSDC    = "0x62bF82f920fd7eBC87BD4AA86BAC6872785545f2";
+const DEMO_SELLER = "0x725E4dd45Cf7e3a6D7152776ca1798a104aDF25C"; // throwaway rehearsal wallet
+const RPC_URL  = "https://polygon-amoy-bor-rpc.publicnode.com";
+const CHAIN_ID = 80002, CHAIN_HEX = "0x13882";
+const FROM_BLOCK = 53447000; // just before escrow deployment (block 53447168)
+const SCAN = "https://amoy.polygonscan.com";
+
+const CATALOG = [
+  { shop:"Shop #1 · AIEA Services", tag:"The platform's own shop 平台自营店", seller:DEMO_SELLER, items:[
+    { name:"Channel Digest — Basic (1 month)", desc:"托管频道日报 · 基础版一个月", price:49 },
+    { name:"Channel Digest — Custom (1 month)", desc:"托管频道日报 · 定制版一个月", price:99 },
+    { name:"Channel Digest — Flagship (1 month)", desc:"托管频道日报 · 旗舰版一个月", price:149 },
+    { name:"Research Report (from)", desc:"行业研究报告 · 起价", price:99 },
+    { name:"Consulting — 1 hour", desc:"AI 自动化咨询 · 1 小时", price:25 },
+    { name:"Custom Bot Build — deposit", desc:"定制机器人搭建 · 定金", price:249 },
+  ]},
+  { shop:"PixelVault", tag:"DEMO SHOP 演示店铺 · virtual game goods 虚拟游戏物品", seller:DEMO_SELLER, items:[
+    { name:"Game Skin Pack — Neon Blade", desc:"游戏皮肤包（演示）", price:15 },
+    { name:"Premium Emote Bundle", desc:"高级表情包（演示）", price:8 },
+    { name:"Digital Art Pack — Cyber Samurai", desc:"数字艺术包（演示）", price:30 },
+  ]},
+  { shop:"StudyShelf", tag:"DEMO SHOP 演示店铺 · digital content 数字内容", seller:DEMO_SELLER, items:[
+    { name:"Solidity Starter eBook", desc:"Solidity 入门电子书（演示）", price:19 },
+    { name:"Design Asset Pack — 200 Icons", desc:"设计素材包（演示）", price:12 },
+    { name:"Video Course — Crypto Basics", desc:"视频课程（演示）", price:59 },
+  ]},
+];
+
+const ESCROW_ABI = [
+  "function commissionBps() view returns (uint256)",
+  "function arbitrationFeeBps() view returns (uint256)",
+  "function totalEscrowed() view returns (uint256)",
+  "function nextOrderId() view returns (uint256)",
+  "function defaultDeliveryWindow() view returns (uint256)",
+  "function maxOrderAmount() view returns (uint256)",
+  "function maxTotalEscrow() view returns (uint256)",
+  "function ARBITRATOR_ROLE() view returns (bytes32)",
+  "function hasRole(bytes32 role, address account) view returns (bool)",
+  "function orders(uint256) view returns (address buyer, address seller, address token, uint256 amount, uint256 feeBpsSnapshot, uint256 arbFeeBpsSnapshot, uint256 createdAt, uint256 deliveryDeadline, uint256 deliveredAt, uint256 confirmDeadline, uint8 extensionsUsed, bytes32 deliveryProofHash, uint8 status, uint8 buyerProposal, uint8 sellerProposal)",
+  "function createOrder(address seller, address token, uint256 amount, uint256 deliveryWindow) returns (uint256)",
+  "function submitDelivery(uint256 orderId, bytes32 proofHash)",
+  "function confirmReceipt(uint256 orderId)",
+  "function extendDeadline(uint256 orderId)",
+  "function openDispute(uint256 orderId)",
+  "function cancelUndelivered(uint256 orderId)",
+  "function claimTimeout(uint256 orderId)",
+  "function resolveByAgreement(uint256 orderId, uint8 outcome)",
+  "function arbitrate(uint256 orderId, uint256 refundBps)",
+  "event OrderCreated(uint256 indexed orderId, address indexed buyer, address indexed seller, address token, uint256 amount, uint256 feeBpsSnapshot, uint256 arbFeeBpsSnapshot, uint256 deliveryDeadline)"
+];
+const ERC20_ABI = [
+  "function balanceOf(address) view returns (uint256)",
+  "function allowance(address,address) view returns (uint256)",
+  "function approve(address,uint256) returns (bool)"
+];
+const STATUS = ["None","Funded 待交付","Delivered 确认中","Disputed 争议中","Released 已放款","Refunded 已退款","Split 仲裁分账"];
+const OUTCOME = { Release:1, Refund:2 };
+
+/* ============ STATE / HELPERS ============ */
+const $ = id => document.getElementById(id);
+const readProvider = new ethers.JsonRpcProvider(RPC_URL);
+const escrowRead = new ethers.Contract(ESCROW, ESCROW_ABI, readProvider);
+let signer = null, account = null, escrowWrite = null, isArbitrator = false;
+
+function log(msg){
+  const el = $("log");
+  if (el.dataset.empty !== "1"){ el.textContent = ""; el.dataset.empty = "1"; }
+  el.textContent += msg + "\n"; el.scrollTop = el.scrollHeight;
+}
+const fmt = (wei, dec=6) => Number(ethers.formatUnits(wei, dec)).toLocaleString(undefined,{maximumFractionDigits:6});
+const fmtDate = ts => ts && Number(ts) > 0 ? new Date(Number(ts)*1000).toLocaleString() : "—";
+const short = a => a ? a.slice(0,6) + "…" + a.slice(-4) : "";
+const txLink = h => `${SCAN}/tx/${h}`;
+
+/* ============ STATUS PANEL (no wallet needed) ============ */
+async function loadStatus(){
+  try{
+    const [comm, arb, esc, next, maxO, maxT, win] = await Promise.all([
+      escrowRead.commissionBps(), escrowRead.arbitrationFeeBps(), escrowRead.totalEscrowed(),
+      escrowRead.nextOrderId(), escrowRead.maxOrderAmount(), escrowRead.maxTotalEscrow(),
+      escrowRead.defaultDeliveryWindow()
+    ]);
+    $("st-commission").textContent = (Number(comm)/100) + "%";
+    $("st-arbfee").textContent = (Number(arb)/100) + "%";
+    $("st-escrowed").textContent = fmt(esc);
+    $("st-orders").textContent = String(Number(next)); // contract: orderId = ++nextOrderId, so nextOrderId == total orders
+    $("st-caps").textContent = fmt(maxO) + " / " + fmt(maxT);
+    $("st-window").textContent = "7 days 天 (delivery " + Math.round(Number(win)/3600) + "h)";
+    const a = $("st-contract"); a.textContent = ESCROW; a.href = `${SCAN}/address/${ESCROW}`;
+  }catch(e){ $("st-error").textContent = "Could not read contract via public RPC — refresh to retry. 暂时无法读取合约，请刷新重试。"; }
+}
+
+/* ============ CATALOG ============ */
+function renderCatalog(){
+  const root = $("catalog"); root.innerHTML = "";
+  CATALOG.forEach(shop => {
+    const wrap = document.createElement("div"); wrap.className = "shop";
+    wrap.innerHTML = `<h3>${shop.shop}</h3><div class="tag">${shop.tag} · seller (demo): <span class="mono">${short(shop.seller)}</span></div>`;
+    const cards = document.createElement("div"); cards.className = "cards";
+    shop.items.forEach(it => {
+      const c = document.createElement("div"); c.className = "card";
+      c.innerHTML = `<h3>${it.name}</h3><div class="price">${it.price} <small>tUSDT (testnet)</small></div><p>${it.desc}</p>`;
+      const b = document.createElement("button"); b.textContent = "Buy with escrow 担保购买";
+      b.onclick = () => buy(it, shop.seller);
+      c.appendChild(b); cards.appendChild(c);
+    });
+    wrap.appendChild(cards); root.appendChild(wrap);
+  });
+}
+
+/* ============ WALLET ============ */
+async function ensureNetwork(){
+  const net = await signer.provider.getNetwork();
+  if (Number(net.chainId) === CHAIN_ID) return true;
+  try{
+    await window.ethereum.request({ method:"wallet_switchEthereumChain", params:[{ chainId: CHAIN_HEX }] });
+  }catch(e){
+    if (e.code === 4902){
+      await window.ethereum.request({ method:"wallet_addEthereumChain", params:[{
+        chainId: CHAIN_HEX, chainName:"Polygon Amoy Testnet",
+        nativeCurrency:{ name:"POL", symbol:"POL", decimals:18 },
+        rpcUrls:[RPC_URL], blockExplorerUrls:[SCAN]
+      }]});
+    } else throw e;
+  }
+  return true;
+}
+async function refreshWalletUI(){
+  if (!account) return;
+  $("w-addr").textContent = account;
+  const net = await signer.provider.getNetwork();
+  $("w-net").textContent = Number(net.chainId) === CHAIN_ID ? "Polygon Amoy (80002)" : "Wrong network — chain " + net.chainId;
+  const usdt = new ethers.Contract(TUSDT, ERC20_ABI, readProvider);
+  const usdc = new ethers.Contract(TUSDC, ERC20_ABI, readProvider);
+  const [b1, b2] = await Promise.all([usdt.balanceOf(account), usdc.balanceOf(account)]);
+  $("w-usdt").textContent = fmt(b1); $("w-usdc").textContent = fmt(b2);
+  try{ const role = await escrowRead.ARBITRATOR_ROLE(); isArbitrator = await escrowRead.hasRole(role, account); }
+  catch(e){ isArbitrator = false; }
+}
+async function connect(){
+  if (!window.ethereum){ $("nowallet").classList.remove("hidden"); return; }
+  const provider = new ethers.BrowserProvider(window.ethereum);
+  await provider.send("eth_requestAccounts", []);
+  signer = await provider.getSigner(); account = await signer.getAddress();
+  await ensureNetwork();
+  signer = await new ethers.BrowserProvider(window.ethereum).getSigner();
+  account = await signer.getAddress();
+  escrowWrite = new ethers.Contract(ESCROW, ESCROW_ABI, signer);
+  $("wallet-none").classList.add("hidden"); $("wallet-on").classList.remove("hidden");
+  $("btn-load-orders").disabled = false;
+  log("Wallet connected: " + account);
+  await refreshWalletUI(); loadOrders();
+}
+$("btn-connect").onclick = () => connect().catch(e => log("Connect failed 连接失败: " + (e.shortMessage || e.message)));
+$("btn-refresh-bal").onclick = () => refreshWalletUI();
+$("btn-switch").onclick = async () => { await ensureNetwork(); signer = await new ethers.BrowserProvider(window.ethereum).getSigner(); escrowWrite = new ethers.Contract(ESCROW, ESCROW_ABI, signer); await refreshWalletUI(); };
+
+/* ============ TX RUNNER ============ */
+async function runTx(label, fn){
+  log(label + " — confirm in your wallet… 请在钱包中确认");
+  const tx = await fn();
+  log(label + " — sent: " + txLink(tx.hash));
+  const rc = await tx.wait();
+  log(label + " — confirmed ✓ (block " + rc.blockNumber + ")");
+  return rc;
+}
+
+/* ============ BUY FLOW ============ */
+async function buy(item, seller){
+  try{
+    if (!signer){ await connect(); if (!signer) return; }
+    if (account.toLowerCase() === seller.toLowerCase()){
+      log("You are connected as the demo seller address — switch to a different wallet to act as buyer. 当前连接的是演示卖家地址，请换一个钱包当买家。"); return;
+    }
+    const amount = ethers.parseUnits(String(item.price), 6);
+    const token = new ethers.Contract(TUSDT, ERC20_ABI, signer);
+    const bal = await new ethers.Contract(TUSDT, ERC20_ABI, readProvider).balanceOf(account);
+    if (bal < amount){ log("Insufficient tUSDT balance (" + fmt(bal) + "). Test tokens only — the rehearsal wallets hold the supply. tUSDT 余额不足。"); return; }
+    const allowance = await token.allowance(account, ESCROW);
+    if (allowance < amount){
+      await runTx("Approve tUSDT 授权", () => token.approve(ESCROW, amount));
+    }
+    let win = 259200n;
+    try{ win = await escrowRead.defaultDeliveryWindow(); }catch(e){}
+    const rc = await runTx("Create order 创建订单: " + item.name + " — " + item.price + " tUSDT",
+      () => escrowWrite.createOrder(seller, TUSDT, amount, win));
+    let orderId = null;
+    for (const lg of rc.logs){
+      try{ const p = escrowRead.interface.parseLog(lg); if (p && p.name === "OrderCreated"){ orderId = p.args.orderId; break; } }catch(e){}
+    }
+    log("Order created ✓ ID = " + (orderId !== null ? orderId.toString() : "?") + " — funds are locked in escrow. 订单已创建，资金已锁入托管。");
+    await refreshWalletUI(); loadOrders();
+  }catch(e){ log("Buy failed 购买失败: " + (e.shortMessage || e.message)); }
+}
+
+/* ============ MY ORDERS ============ */
+async function findOrderIds(addr){
+  const ids = new Set();
+  const latest = await readProvider.getBlockNumber();
+  const filters = [
+    escrowRead.filters.OrderCreated(null, addr, null),
+    escrowRead.filters.OrderCreated(null, null, addr)
+  ];
+  for (const f of filters){
+    for (let from = FROM_BLOCK; from <= latest; from += 20000){
+      const to = Math.min(from + 19999, latest);
+      const logs = await escrowRead.queryFilter(f, from, to);
+      logs.forEach(l => ids.add(Number(l.args.orderId)));
+    }
+  }
+  return [...ids].sort((a,b) => b - a);
+}
+function mkBtn(label, cls, fn){
+  const b = document.createElement("button"); b.textContent = label; if (cls) b.className = cls;
+  b.onclick = async () => { try{ await fn(); await loadOrders(); await refreshWalletUI(); }catch(e){ log("Failed 失败: " + (e.shortMessage || e.message)); } };
+  return b;
+}
+async function loadOrders(){
+  const root = $("orders"); if (!account){ root.innerHTML = ""; return; }
+  root.innerHTML = "<p style='color:var(--mut)'>Scanning on-chain events… 正在扫描链上事件…</p>";
+  try{
+    const ids = await findOrderIds(account);
+    if (!ids.length){ root.innerHTML = "<p style='color:var(--mut)'>No orders for this address yet. 该地址暂无订单。</p>"; return; }
+    root.innerHTML = "";
+    const now = Math.floor(Date.now()/1000);
+    for (const id of ids){
+      const o = await escrowRead.orders(id);
+      const me = account.toLowerCase();
+      const isBuyer = o.buyer.toLowerCase() === me, isSeller = o.seller.toLowerCase() === me;
+      const st = Number(o.status);
+      const div = document.createElement("div"); div.className = "order";
+      const pillCls = st===1?"funded":st===2?"delivered":st===3?"disputed":"done";
+      div.innerHTML =
+        `<h4>Order #${id} · ${fmt(o.amount)} tUSDT <span class="pill ${pillCls}">${STATUS[st]}</span></h4>` +
+        `<div class="mono">buyer 买家 ${o.buyer}<br>seller 卖家 ${o.seller}</div>` +
+        `<div style="color:var(--mut);font-size:.9rem">created ${fmtDate(o.createdAt)} · delivery deadline 交付截止 ${fmtDate(o.deliveryDeadline)}` +
+        (Number(o.deliveredAt) ? ` · delivered ${fmtDate(o.deliveredAt)} · confirm by 确认截止 ${fmtDate(o.confirmDeadline)} · extensions 延长 ${Number(o.extensionsUsed)}/4` : "") +
+        ` · your role 你的角色: ${isBuyer ? "buyer 买家" : isSeller ? "seller 卖家" : "—"}${isArbitrator ? " · arbitrator 仲裁者" : ""}</div>`;
+      const row = document.createElement("div"); row.className = "btnrow";
+      if (st === 1 && isSeller)
+        row.appendChild(mkBtn("Submit delivery 提交交付", "", () => runTx("Submit delivery 交付 #" + id,
+          () => escrowWrite.submitDelivery(id, ethers.keccak256(ethers.toUtf8Bytes("delivery-" + id + "-" + Date.now()))))));
+      if (st === 1 && isBuyer && now > Number(o.deliveryDeadline))
+        row.appendChild(mkBtn("Cancel undelivered 取消未交付", "warn", () => runTx("Cancel undelivered #" + id, () => escrowWrite.cancelUndelivered(id))));
+      if (st === 2 && isBuyer){
+        row.appendChild(mkBtn("Confirm receipt 确认收货", "", () => runTx("Confirm receipt #" + id, () => escrowWrite.confirmReceipt(id))));
+        if (Number(o.extensionsUsed) < 4)
+          row.appendChild(mkBtn("Extend +7d 延长7天", "ghost", () => runTx("Extend #" + id, () => escrowWrite.extendDeadline(id))));
+      }
+      if (st === 2 && (isBuyer || isSeller))
+        row.appendChild(mkBtn("Open dispute 发起争议", "warn", () => runTx("Open dispute #" + id, () => escrowWrite.openDispute(id))));
+      if (st === 2 && now > Number(o.confirmDeadline))
+        row.appendChild(mkBtn("Claim timeout (auto-release) 到期放款", "ghost", () => runTx("Claim timeout #" + id, () => escrowWrite.claimTimeout(id))));
+      if (st === 3 && (isBuyer || isSeller)){
+        row.appendChild(mkBtn("Propose release 提议放款", "ghost", () => runTx("Propose agreement 协商 #" + id, () => escrowWrite.resolveByAgreement(id, OUTCOME.Release))));
+        row.appendChild(mkBtn("Propose refund 提议退款", "ghost", () => runTx("Propose agreement 协商 #" + id, () => escrowWrite.resolveByAgreement(id, OUTCOME.Refund))));
+      }
+      if (st === 3 && isArbitrator){
+        const inp = document.createElement("input"); inp.type = "number"; inp.min = "0"; inp.max = "100"; inp.step = "1"; inp.value = "50"; inp.title = "Refund % to buyer 退给买家 %";
+        const ab = mkBtn("Arbitrate 仲裁", "warn", async () => {
+          const pct = Number(inp.value); if (isNaN(pct) || pct < 0 || pct > 100){ log("Enter a refund % between 0 and 100. 请输入 0–100 的退款百分比。"); return; }
+          await runTx("Arbitrate 仲裁 #" + id + " refund " + pct + "%", () => escrowWrite.arbitrate(id, Math.round(pct * 100)));
+        });
+        row.appendChild(inp); row.appendChild(ab);
+      }
+      div.appendChild(row); root.appendChild(div);
+    }
+  }catch(e){ root.innerHTML = "<p style='color:var(--bad)'>Failed to load orders: " + (e.shortMessage || e.message) + "</p>"; }
+}
+$("btn-load-orders").onclick = () => loadOrders();
+
+/* ============ INIT ============ */
+renderCatalog();
+loadStatus();
+if (window.ethereum){
+  window.ethereum.on && window.ethereum.on("accountsChanged", () => location.reload());
+  window.ethereum.on && window.ethereum.on("chainChanged", () => location.reload());
+} else {
+  log("No Web3 wallet detected — read-only mode. Install MetaMask to trade. 未检测到钱包，当前为只读模式。");
+}
+</script>
+</body>
+</html>
