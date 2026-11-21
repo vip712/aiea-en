@@ -116,13 +116,15 @@ footer{margin-top:56px;border-top:1px solid var(--line);padding-top:20px;color:v
 <div id="catalog"></div>
 
 <h2>Community Listings · 用户上架</h2>
-<p class="sub">Listings published from a browser like yours via the Sell section below. 访客通过下方上架区发布的商品。</p>
+<p class="sub">Listings published via the Sell section below — from the public catalog when it is online, or from this browser when it is not. 通过下方上架区发布的商品——公开目录在线时来自平台目录，否则来自本浏览器。</p>
+<div id="community-api"></div>
+<p id="community-note" class="hidden" style="color:var(--mut);font-size:.9rem"></p>
 <div id="community"></div>
 
 <h2 id="sell">Sell on the Marketplace · 我要上架</h2>
 <div class="panel sellform">
   <p style="color:var(--mut);margin-top:0">List your own virtual good or service. Your connected wallet address becomes the seller — buyers pay it through the escrow contract.<br>上架你自己的虚拟物品或服务：当前连接的钱包地址即卖家地址，买家通过托管合约向该地址付款。</p>
-  <p style="color:var(--acc2);font-size:.92rem">Demo note: in this testnet demo, listings are stored in your browser and shared via link; the production version stores listings in the platform catalog.<br>演示说明：本测试网演示版中，商品信息保存在你的浏览器中、通过链接分享；正式版将保存在平台商品目录中。</p>
+  <p style="color:var(--acc2);font-size:.92rem">Demo note: when the public catalog (api.aiea.cc.cd) is online, publishing asks your wallet to sign the listing and stores it in the platform catalog for everyone to see. If the catalog is offline, the listing is stored in your browser instead and can be shared via link.<br>演示说明：平台公开目录（api.aiea.cc.cd）在线时，发布需用钱包对商品信息签名，商品存入平台目录、所有人可见；目录不可达时，商品保存在你的浏览器中、通过链接分享。</p>
   <form id="sell-form">
     <label class="fl">Seller address 卖家地址（= connected wallet 当前连接的钱包）</label>
     <div class="mono" id="sell-addr">Not connected — connect your wallet above first. 未连接——请先在上方连接钱包。</div>
@@ -195,6 +197,7 @@ const RPC_URL  = "https://polygon-amoy-bor-rpc.publicnode.com";
 const CHAIN_ID = 80002, CHAIN_HEX = "0x13882";
 const FROM_BLOCK = 53447000; // just before escrow deployment (block 53447168)
 const SCAN = "https://amoy.polygonscan.com";
+const API_BASE = "https://api.aiea.cc.cd"; // public catalog backend; page must work with it unreachable
 
 const CATALOG = [
   { shop:"Shop #1 · AIEA Services", tag:"The platform's own shop 平台自营店", seller:DEMO_SELLER, items:[
@@ -328,6 +331,11 @@ function listingCard(l, opts){
   if (l.delivery){ const p = document.createElement("p"); p.textContent = "Delivery 交付: " + l.delivery; c.appendChild(p); }
   const sp = document.createElement("p"); sp.style.fontSize = ".85rem";
   sp.textContent = "Seller 卖家: " + short(l.seller) + " (" + l.seller + ")"; c.appendChild(sp);
+  if (opts.api){
+    const rp = document.createElement("p"); rp.className = "rep-line"; rp.dataset.seller = l.seller;
+    rp.style.cssText = "font-size:.85rem;color:var(--mut)"; rp.textContent = "";
+    c.appendChild(rp);
+  }
   const row = document.createElement("div"); row.className = "btnrow";
   const b = document.createElement("button"); b.textContent = "Buy with escrow 担保购买";
   b.onclick = () => buy({ name: l.title, price: l.price }, l.seller, l.token, tokenSymbol(l.token));
@@ -348,6 +356,11 @@ function listingCard(l, opts){
     };
     row.appendChild(rm);
   }
+  if (opts.apiRemovable){
+    const rm = document.createElement("button"); rm.className = "warn"; rm.textContent = "Remove 下架";
+    rm.onclick = () => removeApiListing(l, rm);
+    row.appendChild(rm);
+  }
   c.appendChild(row);
   return c;
 }
@@ -356,6 +369,7 @@ function renderCommunity(){
   const arr = loadListings();
   root.innerHTML = "";
   if (!arr.length){
+    if (apiOnline) return; // public catalog above already covers the empty state
     const p = document.createElement("p"); p.style.color = "var(--mut)";
     p.textContent = "No community listings yet — be the first to list in the Sell section below. 暂无用户上架——在下方上架区发布你的第一个商品。";
     root.appendChild(p); return;
@@ -387,7 +401,124 @@ function renderShared(){
   cards.appendChild(listingCard(l, { removable: false }));
   shopWrap.appendChild(cards); root.appendChild(shopWrap);
 }
-function onSellSubmit(e){
+/* ============ PUBLIC CATALOG API (api.aiea.cc.cd) — graceful fallback to local mode ============ */
+let apiOnline = false;
+let apiListingsCache = [];
+const repCache = {};
+async function apiFetch(path, opts, timeoutMs){
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), timeoutMs || 4000);
+  try{ return await fetch(API_BASE + path, Object.assign({}, opts || {}, { signal: ctl.signal })); }
+  finally{ clearTimeout(t); }
+}
+function apiToLocal(l){
+  if (!l || typeof l !== "object") return null;
+  let tokenAddr = l.tokenAddress;
+  if (typeof tokenAddr !== "string" || !/^0x[0-9a-fA-F]{40}$/.test(tokenAddr))
+    tokenAddr = String(l.token || "").toLowerCase() === "tusdc" ? TUSDC : TUSDT;
+  const mapped = {
+    shop: l.shopName, title: l.title, category: l.category,
+    price: Number(l.price), token: tokenAddr,
+    desc: l.description, delivery: l.deliveryNote,
+    seller: l.seller, created: Date.parse(l.createdAt) || Date.now()
+  };
+  if (!validListing(mapped)) return null;
+  const c = cleanListing(mapped);
+  c.api = true; c.apiId = l.id;
+  return c;
+}
+async function fetchApiListings(){
+  const r = await apiFetch("/api/listings", {}, 4000);
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  const j = await r.json();
+  const arr = Array.isArray(j) ? j : (j && Array.isArray(j.listings) ? j.listings : []);
+  return arr.map(apiToLocal).filter(Boolean);
+}
+async function fillReputations(root){
+  try{
+    const lines = root.querySelectorAll(".rep-line[data-seller]");
+    const sellers = [...new Set([...lines].map(el => el.dataset.seller))];
+    for (const s of sellers){
+      let rep = repCache[s];
+      if (!rep){
+        try{
+          const r = await apiFetch("/api/reputation/" + s, {}, 4000);
+          if (r.ok){ rep = await r.json(); repCache[s] = rep; }
+        }catch(e){ /* reputation is decorative — never break rendering */ }
+      }
+      if (rep && typeof rep.score !== "undefined"){
+        const txt = "Seller reputation 卖家信誉: score " + rep.score + " · " + (rep.completedCount || 0) + " completed orders 已完成订单";
+        lines.forEach(el => { if (el.dataset.seller === s) el.textContent = txt; });
+      }
+    }
+  }catch(e){ /* ignore */ }
+}
+function renderApiCommunity(){
+  const root = $("community-api"); if (!root) return;
+  root.innerHTML = "";
+  if (!apiListingsCache.length){
+    const p = document.createElement("p"); p.style.color = "var(--mut)";
+    p.textContent = "Public catalog is online — no listings yet. Be the first to publish in the Sell section below. 平台公开目录已上线，暂无商品——在下方上架区发布第一个。";
+    root.appendChild(p); return;
+  }
+  const byShop = {};
+  apiListingsCache.forEach(l => { (byShop[l.shop] = byShop[l.shop] || []).push(l); });
+  Object.keys(byShop).forEach(shopName => {
+    const wrap = document.createElement("div"); wrap.className = "shop";
+    const h = document.createElement("h3"); h.textContent = shopName; wrap.appendChild(h);
+    const tag = document.createElement("div"); tag.className = "tag"; tag.textContent = "Public catalog 平台公开目录"; wrap.appendChild(tag);
+    const cards = document.createElement("div"); cards.className = "cards";
+    byShop[shopName].forEach(l => cards.appendChild(listingCard(l, {
+      api: true,
+      apiRemovable: !!(account && l.seller && l.seller.toLowerCase() === account.toLowerCase())
+    })));
+    wrap.appendChild(cards); root.appendChild(wrap);
+  });
+  fillReputations(root);
+}
+async function removeApiListing(l, btn){
+  if (!signer || !account){ log("Connect your wallet to remove this listing. 请先连接钱包再下架。"); return; }
+  if (!l.seller || account.toLowerCase() !== l.seller.toLowerCase()){ log("Only the seller can remove this listing. 只有卖家本人可以下架。"); return; }
+  try{
+    if (btn) btn.disabled = true;
+    const ts = Math.floor(Date.now() / 1000);
+    const signature = await signer.signMessage("AIEA Market listing\n" + account + "\n" + ts);
+    const r = await apiFetch("/api/listings/" + encodeURIComponent(l.apiId), {
+      method: "DELETE", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ seller: account, timestamp: ts, signature: signature })
+    }, 8000);
+    if (!r.ok){
+      let m = ""; try{ const j = await r.json(); m = j.error || j.message || ""; }catch(e){}
+      throw new Error("HTTP " + r.status + (m ? ": " + m : ""));
+    }
+    log("Listing removed from the public catalog 已从公开目录下架: " + l.title);
+    apiListingsCache = await fetchApiListings(); renderApiCommunity();
+  }catch(e){
+    log("Remove failed 下架失败: " + (e.shortMessage || e.message));
+    if (btn) btn.disabled = false;
+  }
+}
+async function initCommunity(){
+  renderCommunity(); // local listings render instantly, whatever the API does
+  try{
+    apiListingsCache = await fetchApiListings();
+    apiOnline = true;
+    const note = $("community-note");
+    if (note){ note.classList.add("hidden"); note.textContent = ""; }
+    renderApiCommunity();
+    renderCommunity(); // re-render local part with the API-aware empty state
+    log("Public catalog online — listings loaded from api.aiea.cc.cd. 平台公开目录已连接，商品已加载。");
+  }catch(e){
+    apiOnline = false;
+    const note = $("community-note");
+    if (note){
+      note.classList.remove("hidden");
+      note.textContent = "Public catalog is offline — showing listings stored in this browser (local mode). 公开目录暂不可达——当前为本地模式，显示保存在本浏览器的商品。";
+    }
+  }
+}
+
+async function onSellSubmit(e){
   e.preventDefault();
   const msg = $("sell-msg");
   const fail = t => { msg.style.color = "var(--bad)"; msg.textContent = t; };
@@ -411,14 +542,56 @@ function onSellSubmit(e){
     seller: account,
     created: Date.now()
   });
+  const clearForm = () => {
+    $("f-title").value = ""; $("f-price").value = ""; $("f-desc").value = ""; $("f-delivery").value = "";
+    $("price-warn").classList.add("hidden");
+  };
+  // Preferred path: publish to the public catalog API with a wallet signature.
+  let reachable = apiOnline;
+  if (!reachable){
+    try{ const hr = await apiFetch("/health", {}, 3000); reachable = hr.ok; }catch(e){ reachable = false; }
+  }
+  if (reachable){
+    const ts = Math.floor(Date.now() / 1000);
+    let signature = null;
+    try{ signature = await signer.signMessage("AIEA Market listing\n" + account + "\n" + ts); }
+    catch(e){ fail("Signature cancelled — listing not published. 已取消签名，未上架。"); return; }
+    let r = null;
+    try{
+      r = await apiFetch("/api/listings", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          shopName: l.shop, title: l.title, category: l.category, price: l.price,
+          token: tokenSymbol(l.token), description: l.desc, deliveryNote: l.delivery,
+          seller: account, timestamp: ts, signature: signature
+        })
+      }, 8000);
+    }catch(e){ r = null; } // network failure mid-publish → local fallback below
+    if (r && r.ok){
+      apiOnline = true;
+      msg.style.color = "var(--ok)";
+      msg.textContent = "Published to the public catalog ✓ — everyone can see it under Community Listings above. 已发布到平台公开目录——见上方“用户上架”区，所有人可见。";
+      log("Listing published via public catalog API (wallet-signed) 通过公开目录上架成功（钱包签名）: " + l.title + " — " + l.price + " " + tokenSymbol(l.token) + " · seller " + l.seller);
+      if (price > 500) log("Note: this price is above the pilot single-order cap (500); the contract will block checkout until caps are raised. 注意：价格超过试点单笔上限 500，上限提高前合约会拦截下单。");
+      try{ apiListingsCache = await fetchApiListings(); renderApiCommunity(); }catch(e){}
+      clearForm();
+      return;
+    }
+    if (r && !r.ok){
+      let m = ""; try{ const j = await r.json(); m = j.error || j.message || ""; }catch(e){}
+      fail("Public catalog rejected the listing (HTTP " + r.status + (m ? ": " + m : "") + "). 公开目录拒绝了该上架请求。");
+      return;
+    }
+    log("Public catalog connection lost during publish — falling back to local mode. 发布时公开目录连接中断，改用本地模式。");
+  }
+  // Fallback path: store in this browser + share link (original behavior).
   const arr = loadListings(); arr.push(l); saveListings(arr);
   renderCommunity();
   msg.style.color = "var(--ok)";
-  msg.textContent = "Published ✓ — find it under Community Listings above; use its Copy share link button to share it. 已上架——见上方“用户上架”区，可用“复制分享链接”分享。";
-  log("Listing published 上架成功: " + l.title + " — " + l.price + " " + tokenSymbol(l.token) + " · seller " + l.seller);
+  msg.textContent = "Published (local mode) ✓ — find it under Community Listings above; use its Copy share link button to share it. 已上架（本地模式）——见上方“用户上架”区，可用“复制分享链接”分享。";
+  log("Listing published in LOCAL mode (public catalog offline) 本地模式上架成功（公开目录不可达）: " + l.title + " — " + l.price + " " + tokenSymbol(l.token) + " · seller " + l.seller);
   if (price > 500) log("Note: this price is above the pilot single-order cap (500); the contract will block checkout until caps are raised. 注意：价格超过试点单笔上限 500，上限提高前合约会拦截下单。");
-  $("f-title").value = ""; $("f-price").value = ""; $("f-desc").value = ""; $("f-delivery").value = "";
-  $("price-warn").classList.add("hidden");
+  clearForm();
 }
 
 /* ============ STATUS PANEL (no wallet needed) ============ */
@@ -500,6 +673,7 @@ async function connect(){
   $("btn-load-orders").disabled = false;
   log("Wallet connected: " + account);
   await refreshWalletUI(); loadOrders();
+  if (apiOnline) renderApiCommunity(); // reveal Remove buttons on my own API listings
 }
 $("btn-connect").onclick = () => connect().catch(e => log("Connect failed 连接失败: " + (e.shortMessage || e.message)));
 $("btn-refresh-bal").onclick = () => refreshWalletUI();
@@ -622,7 +796,7 @@ $("btn-load-orders").onclick = () => loadOrders();
 
 /* ============ INIT ============ */
 renderCatalog();
-renderCommunity();
+initCommunity();
 renderShared();
 loadStatus();
 const sellFormEl = $("sell-form");
