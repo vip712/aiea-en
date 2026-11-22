@@ -685,6 +685,50 @@ function renderShared(){
   shopWrap.appendChild(cards); root.appendChild(shopWrap);
 }
 /* ============ PUBLIC CATALOG API (api.aiea.cc.cd) — graceful fallback to local mode ============ */
+/* Listing auth v2 (content-bound signatures). The helpers below are ported
+   byte-for-byte from mall-platform/backend/src/auth.js: the server recomputes
+   the listing hash from the request body with these exact normalization rules
+   and requires the signature to match, so any drift here breaks every signed
+   publish/delete. Change only together with the backend. */
+const AUTH_LIMITS = { title: 120, category: 40, description: 1000, imageUrl: 500 };
+const AUTH_TOKEN_SYMBOLS = ["tUSDT", "tUSDC"];
+function authCleanString(v, max){
+  if (v === undefined || v === null) return "";
+  // Strip control characters (keep \n and \t), trim, cap length.
+  return String(v).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").trim().slice(0, max);
+}
+function authCanonicalToken(raw){
+  const t = String(raw == null ? "" : raw).trim();
+  return AUTH_TOKEN_SYMBOLS.find(s => s.toLowerCase() === t.toLowerCase()) || "";
+}
+function normalizeListingFields(body){
+  const priceNum = Number(body && body.price);
+  return {
+    title: authCleanString(body && body.title, AUTH_LIMITS.title),
+    price: Number.isFinite(priceNum) ? String(priceNum) : "",
+    token: authCanonicalToken(body && body.token),
+    category: authCleanString(body && body.category, AUTH_LIMITS.category) || "Other Virtual Goods",
+    description: authCleanString(body && body.description, AUTH_LIMITS.description),
+    imageUrl: authCleanString(body && body.imageUrl, AUTH_LIMITS.imageUrl)
+  };
+}
+function computeListingHash(body){
+  const f = normalizeListingFields(body);
+  const preimage = [f.title, f.price, f.token, f.category, f.description, f.imageUrl].join("|");
+  return ethers.keccak256(ethers.toUtf8Bytes(preimage));
+}
+function buildListingAuthMessage(opts){
+  const lines = [
+    "AIEA Market Listing",
+    "chainId: " + CHAIN_ID,
+    "action: " + opts.action,
+    "seller: " + String(opts.seller).trim().toLowerCase()
+  ];
+  if (opts.action === "create") lines.push("listingHash: " + opts.listingHash);
+  else if (opts.action === "delete") lines.push("listingId: " + Number(opts.listingId));
+  lines.push("timestamp: " + opts.timestamp);
+  return lines.join("\n");
+}
 let apiOnline = false;
 let apiListingsCache = [];
 const repCache = {};
@@ -772,7 +816,7 @@ async function removeApiListing(l, btn){
   try{
     if (btn) btn.disabled = true;
     const ts = Math.floor(Date.now() / 1000);
-    const signature = await signer.signMessage("AIEA Market listing\n" + account + "\n" + ts);
+    const signature = await signer.signMessage(buildListingAuthMessage({ action: "delete", seller: account, listingId: l.apiId, timestamp: ts }));
     const r = await apiFetch("/api/listings/" + encodeURIComponent(l.apiId), {
       method: "DELETE", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ seller: account, timestamp: ts, signature: signature })
@@ -843,18 +887,21 @@ async function onSellSubmit(e){
   }
   if (reachable){
     const ts = Math.floor(Date.now() / 1000);
+    // The signature binds this exact payload: the listing hash is computed
+    // locally over the same field values that go into the request body.
+    const payload = {
+      shopName: l.shop, title: l.title, category: l.category, price: l.price,
+      token: tokenSymbol(l.token), description: l.desc, deliveryNote: l.delivery,
+      seller: account, timestamp: ts
+    };
     let signature = null;
-    try{ signature = await signer.signMessage("AIEA Market listing\n" + account + "\n" + ts); }
+    try{ signature = await signer.signMessage(buildListingAuthMessage({ action: "create", seller: account, listingHash: computeListingHash(payload), timestamp: ts })); }
     catch(e){ fail("Signature cancelled — listing not published. 已取消签名，未上架。"); return; }
     let r = null;
     try{
       r = await apiFetch("/api/listings", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          shopName: l.shop, title: l.title, category: l.category, price: l.price,
-          token: tokenSymbol(l.token), description: l.desc, deliveryNote: l.delivery,
-          seller: account, timestamp: ts, signature: signature
-        })
+        body: JSON.stringify(Object.assign({}, payload, { signature: signature }))
       }, 8000);
     }catch(e){ r = null; } // network failure mid-publish → local fallback below
     if (r && r.ok){
