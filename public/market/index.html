@@ -57,6 +57,17 @@ label.fl{display:block;margin:14px 0 4px;color:var(--mut);font-size:.9rem}
 .step b{color:var(--acc)}
 footer{margin-top:56px;border-top:1px solid var(--line);padding-top:20px;color:var(--mut);font-size:.9rem}
 .hidden{display:none}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.chip{background:transparent;color:var(--mut);border:1px solid var(--line);padding:5px 12px;border-radius:999px;cursor:pointer;font-size:.85rem;font-weight:600}
+.chip:hover{color:var(--txt);opacity:1}
+.chip.on{background:var(--acc);color:#06121f;border-color:var(--acc)}
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.filters input[type=text],.filters input[type=date],.filters select{background:#0b0f18;border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:8px 10px;font:inherit;font-size:.9rem;color-scheme:dark}
+.filters input[type=text]{flex:1 1 170px}
+.filters input[type=number]{width:110px}
+.catlab{display:inline-block;padding:1px 10px;border-radius:999px;font-size:.76rem;font-weight:700;color:var(--acc2);border:1px solid var(--acc2)}
+.meta{color:var(--mut);font-size:.82rem}
+.refbadge{display:block;background:#3a2c07;border:1px solid var(--acc2);color:#ffd98a;border-radius:8px;padding:7px 11px;font-size:.86rem;margin-top:10px;font-weight:600}
 </style>
 </head>
 <body>
@@ -111,6 +122,28 @@ footer{margin-top:56px;border-top:1px solid var(--line);padding-top:20px;color:v
 <div id="shared"></div>
 </div>
 
+<h2>Browse · 浏览与搜索</h2>
+<div class="panel" id="browse-bar">
+  <div class="chips" id="cat-chips"></div>
+  <div class="filters">
+    <input type="text" id="f-q" placeholder="Keyword 关键字：标题 / 店铺 / 描述">
+    <input type="text" id="f-seller" placeholder="Seller wallet 卖家地址（前缀或全址）">
+    <input type="number" id="f-min" placeholder="Min 最低价" min="0" step="any">
+    <input type="number" id="f-max" placeholder="Max 最高价" min="0" step="any">
+    <label style="color:var(--mut);font-size:.85rem">From 从 <input type="date" id="f-from"></label>
+    <label style="color:var(--mut);font-size:.85rem">To 到 <input type="date" id="f-to"></label>
+    <select id="f-sort">
+      <option value="new">Newest first 最新上架</option>
+      <option value="plo">Price: low to high 价格从低到高</option>
+      <option value="phi">Price: high to low 价格从高到低</option>
+    </select>
+    <button type="button" class="ghost" id="btn-clear-filters">Clear filters 清除筛选</button>
+  </div>
+  <p id="result-count" style="color:var(--mut);margin:10px 0 0;font-size:.9rem"></p>
+</div>
+
+<div id="test-slot"></div>
+
 <h2>Shops &amp; listings · 店铺与商品</h2>
 <p class="sub">Demo catalog — buying creates a real order on the Amoy testnet escrow contract, paid to a demo seller address. 演示目录——购买会在 Amoy 测试网托管合约上创建真实订单，卖家为演示地址。</p>
 <div id="catalog"></div>
@@ -134,11 +167,37 @@ footer{margin-top:56px;border-top:1px solid var(--line);padding-top:20px;color:v
     <input type="text" id="f-title" maxlength="120" placeholder="e.g. Logo design package">
     <label class="fl" for="f-category">Category 类别</label>
     <select id="f-category">
-      <option>Digital Content</option>
-      <option>Subscriptions</option>
-      <option>Dev &amp; Design Services</option>
-      <option>Consulting</option>
-      <option>Other Virtual Goods</option>
+      <optgroup label="充值代充 Top-ups">
+        <option value="Top-ups / AI 充值">AI 充值 · AI Top-ups</option>
+        <option value="Top-ups / 游戏代充">游戏代充 · Game Top-ups</option>
+        <option value="Top-ups / 话费流量">话费流量 · Mobile Credit &amp; Data</option>
+        <option value="Top-ups / 会员代充">会员代充 · Membership Top-ups</option>
+      </optgroup>
+      <optgroup label="AI 账号 AI Accounts">
+        <option value="AI Accounts / AI 订阅账号">AI 订阅账号 · AI Subscription Accounts</option>
+        <option value="AI Accounts / AI API 账号">AI API 账号 · AI API Accounts</option>
+        <option value="AI Accounts / 其他 AI 账号">其他 AI 账号 · Other AI Accounts</option>
+      </optgroup>
+      <optgroup label="游戏币 Game Currency">
+        <option value="Game Currency / 热门游戏币">热门游戏币 · Popular Game Currency</option>
+        <option value="Game Currency / 其他游戏币">其他游戏币 · Other Game Currency</option>
+      </optgroup>
+      <option value="Game Accounts">游戏账号 · Game Accounts</option>
+      <optgroup label="卡券礼品卡 Gift Cards &amp; Cards">
+        <option value="Gift Cards &amp; Cards / 平台礼品卡">平台礼品卡 · Platform Gift Cards</option>
+        <option value="Gift Cards &amp; Cards / 电话充值卡">电话充值卡 · Phone Top-up Cards</option>
+        <option value="Gift Cards &amp; Cards / 游戏点卡">游戏点卡 · Game Points Cards</option>
+        <option value="Gift Cards &amp; Cards / 其他卡券">其他卡券 · Other Cards &amp; Vouchers</option>
+      </optgroup>
+      <optgroup label="VPN 与网络 VPN &amp; Network">
+        <option value="VPN &amp; Network / VPN 订阅">VPN 订阅 · VPN Subscriptions</option>
+        <option value="VPN &amp; Network / 代理与节点">代理与节点 · Proxies &amp; Nodes</option>
+      </optgroup>
+      <option value="Digital Content">数字内容 · Digital Content</option>
+      <option value="Subscriptions">订阅与会员 · Subscriptions</option>
+      <option value="Dev &amp; Design Services">开发设计服务 · Dev &amp; Design Services</option>
+      <option value="Consulting">咨询服务 · Consulting</option>
+      <option value="Other Virtual Goods">其他虚拟商品 · Other Virtual Goods</option>
     </select>
     <label class="fl" for="f-price">Price 价格 *</label>
     <input type="number" id="f-price" min="0" step="any" placeholder="e.g. 25">
@@ -206,24 +265,219 @@ const API_BASE = "https://api.aiea.cc.cd"; // public catalog backend; page must 
 
 const CATALOG = [
   { shop:"Shop #1 · AIEA Services", tag:"The platform's own shop 平台自营店", seller:DEMO_SELLER, items:[
-    { name:"Channel Digest — Basic (1 month)", desc:"托管频道日报 · 基础版一个月", price:49 },
-    { name:"Channel Digest — Custom (1 month)", desc:"托管频道日报 · 定制版一个月", price:99 },
-    { name:"Channel Digest — Flagship (1 month)", desc:"托管频道日报 · 旗舰版一个月", price:149 },
-    { name:"Research Report (from)", desc:"行业研究报告 · 起价", price:99 },
-    { name:"Consulting — 1 hour", desc:"AI 自动化咨询 · 1 小时", price:25 },
-    { name:"Custom Bot Build — deposit", desc:"定制机器人搭建 · 定金", price:249 },
+    { name:"Channel Digest — Basic (1 month)", desc:"托管频道日报 · 基础版一个月", price:49, category:"Subscriptions", created:Date.parse("2026-11-21T10:00:00Z") },
+    { name:"Channel Digest — Custom (1 month)", desc:"托管频道日报 · 定制版一个月", price:99, category:"Subscriptions", created:Date.parse("2026-11-20T10:00:00Z") },
+    { name:"Channel Digest — Flagship (1 month)", desc:"托管频道日报 · 旗舰版一个月", price:149, category:"Subscriptions", created:Date.parse("2026-11-19T10:00:00Z") },
+    { name:"Research Report (from)", desc:"行业研究报告 · 起价", price:99, category:"Digital Content", created:Date.parse("2026-11-18T10:00:00Z") },
+    { name:"Consulting — 1 hour", desc:"AI 自动化咨询 · 1 小时", price:25, category:"Consulting", created:Date.parse("2026-11-17T10:00:00Z") },
+    { name:"Custom Bot Build — deposit", desc:"定制机器人搭建 · 定金", price:249, category:"Dev & Design Services", created:Date.parse("2026-11-16T10:00:00Z") },
   ]},
   { shop:"PixelVault", tag:"DEMO SHOP 演示店铺 · virtual game goods 虚拟游戏物品", seller:DEMO_SELLER, items:[
-    { name:"Game Skin Pack — Neon Blade", desc:"游戏皮肤包（演示）", price:15 },
-    { name:"Premium Emote Bundle", desc:"高级表情包（演示）", price:8 },
-    { name:"Digital Art Pack — Cyber Samurai", desc:"数字艺术包（演示）", price:30 },
+    { name:"Game Skin Pack — Neon Blade", desc:"游戏皮肤包（演示）", price:15, category:"Other Virtual Goods", created:Date.parse("2026-11-15T10:00:00Z") },
+    { name:"Premium Emote Bundle", desc:"高级表情包（演示）", price:8, category:"Digital Content", created:Date.parse("2026-11-14T10:00:00Z") },
+    { name:"Digital Art Pack — Cyber Samurai", desc:"数字艺术包（演示）", price:30, category:"Digital Content", created:Date.parse("2026-11-13T10:00:00Z") },
   ]},
   { shop:"StudyShelf", tag:"DEMO SHOP 演示店铺 · digital content 数字内容", seller:DEMO_SELLER, items:[
-    { name:"Solidity Starter eBook", desc:"Solidity 入门电子书（演示）", price:19 },
-    { name:"Design Asset Pack — 200 Icons", desc:"设计素材包（演示）", price:12 },
-    { name:"Video Course — Crypto Basics", desc:"视频课程（演示）", price:59 },
+    { name:"Solidity Starter eBook", desc:"Solidity 入门电子书（演示）", price:19, category:"Digital Content", created:Date.parse("2026-11-12T10:00:00Z") },
+    { name:"Design Asset Pack — 200 Icons", desc:"设计素材包（演示）", price:12, category:"Digital Content", created:Date.parse("2026-11-11T10:00:00Z") },
+    { name:"Video Course — Crypto Basics", desc:"视频课程（演示）", price:59, category:"Digital Content", created:Date.parse("2026-11-10T10:00:00Z") },
+  ]},
+  { shop:"DemoMart", tag:"DEMO SHOP 演示店铺 · top-ups, accounts, cards & VPN 充值、账号、卡券与 VPN", seller:DEMO_SELLER, items:[
+    { name:"AI Subscription Top-up — 1 month (demo)", desc:"AI 订阅代充 · 一个月（演示）", price:20, category:"Top-ups / AI 充值", created:Date.parse("2026-11-09T10:00:00Z") },
+    { name:"Game Top-up — 1,000 Diamonds (demo)", desc:"游戏代充 · 1000 钻石（演示）", price:10, category:"Top-ups / 游戏代充", created:Date.parse("2026-11-08T10:00:00Z") },
+    { name:"Mobile Credit Top-up (demo)", desc:"话费流量代充（演示）", price:10, category:"Top-ups / 话费流量", created:Date.parse("2026-11-07T10:00:00Z") },
+    { name:"Membership Top-up — Video VIP 1 month (demo)", desc:"会员代充 · 视频 VIP 一个月（演示）", price:6, category:"Top-ups / 会员代充", created:Date.parse("2026-11-06T10:00:00Z") },
+    { name:"AI Subscription Account — 1 month (demo)", desc:"AI 订阅账号 · 一个月（演示）", price:15, category:"AI Accounts / AI 订阅账号", created:Date.parse("2026-11-05T10:00:00Z") },
+    { name:"AI API Account Credit (demo)", desc:"AI API 账号额度（演示）", price:30, category:"AI Accounts / AI API 账号", created:Date.parse("2026-11-04T10:00:00Z") },
+    { name:"Game Currency — 10,000 Gold (demo)", desc:"游戏币 · 10000 金币（演示）", price:12, category:"Game Currency / 热门游戏币", created:Date.parse("2026-11-03T10:00:00Z") },
+    { name:"Game Account — Level 60 (demo)", desc:"游戏账号 · 60 级（演示）", price:80, category:"Game Accounts", created:Date.parse("2026-11-02T10:00:00Z") },
+    { name:"Platform Gift Card — 25 (demo)", desc:"平台礼品卡 · 25 面值（演示）", price:25, category:"Gift Cards & Cards / 平台礼品卡", created:Date.parse("2026-11-01T10:00:00Z") },
+    { name:"Game Points Card — 500 pts (demo)", desc:"游戏点卡 · 500 点（演示）", price:8, category:"Gift Cards & Cards / 游戏点卡", created:Date.parse("2026-10-31T10:00:00Z") },
+    { name:"VPN Subscription — 1 year (demo)", desc:"VPN 订阅 · 一年（演示）", price:39, category:"VPN & Network / VPN 订阅", created:Date.parse("2026-10-30T10:00:00Z") },
+    { name:"Proxy Nodes Pack — 1 month (demo)", desc:"代理节点包 · 一个月（演示）", price:9, category:"VPN & Network / 代理与节点", created:Date.parse("2026-10-29T10:00:00Z") },
   ]},
 ];
+
+/* ============ CATEGORIES (一级 / 二级; stored in the listing category field) ============ */
+const CATEGORIES = [
+  { key:"Top-ups", zh:"充值代充" },
+  { key:"AI Accounts", zh:"AI 账号" },
+  { key:"Game Currency", zh:"游戏币" },
+  { key:"Game Accounts", zh:"游戏账号" },
+  { key:"Gift Cards & Cards", zh:"卡券礼品卡" },
+  { key:"VPN & Network", zh:"VPN 与网络" },
+  { key:"Digital Content", zh:"数字内容" },
+  { key:"Subscriptions", zh:"订阅与会员" },
+  { key:"Dev & Design Services", zh:"开发设计服务" },
+  { key:"Consulting", zh:"咨询服务" },
+  { key:"Other Virtual Goods", zh:"其他虚拟商品" }
+];
+const LEGACY_CAT_MAP = { // pre-2026-11-22 category values → new primary category
+  "Digital Content":"Digital Content", "Subscriptions":"Subscriptions",
+  "Dev & Design Services":"Dev & Design Services", "Consulting":"Consulting",
+  "Other Virtual Goods":"Other Virtual Goods"
+};
+function primaryCat(cat){
+  if (!cat) return "Other Virtual Goods";
+  const head = String(cat).split(" / ")[0].trim();
+  if (CATEGORIES.some(c => c.key === head)) return head;
+  if (LEGACY_CAT_MAP[head]) return LEGACY_CAT_MAP[head];
+  return "Other Virtual Goods";
+}
+function catLabel(key){
+  const c = CATEGORIES.find(x => x.key === key);
+  return c ? (c.zh + " · " + c.key) : key;
+}
+function fmtRel(ts){
+  ts = Number(ts) || 0;
+  if (!ts) return "—";
+  const d = Date.now() - ts;
+  if (d < 0) return new Date(ts).toLocaleDateString();
+  const min = Math.floor(d / 60000), hr = Math.floor(d / 3600000), day = Math.floor(d / 86400000);
+  if (min < 1) return "just now 刚刚";
+  if (min < 60) return min + " min ago · " + min + " 分钟前";
+  if (hr < 24) return hr + " h ago · " + hr + " 小时前";
+  if (day < 30) return day + " d ago · " + day + " 天前";
+  return new Date(ts).toLocaleDateString();
+}
+
+/* ============ REFERRER (?ref= → localStorage) ============ */
+const REF_KEY = "aiea_market_referrer";
+function getReferrer(){
+  try{
+    const m = location.search.match(/[?&]ref=(0x[0-9a-fA-F]{40})/);
+    if (m){ localStorage.setItem(REF_KEY, m[1]); return m[1]; }
+    const saved = localStorage.getItem(REF_KEY);
+    if (saved && /^0x[0-9a-fA-F]{40}$/.test(saved)) return saved;
+  }catch(e){}
+  return "";
+}
+const REFERRER = getReferrer();
+
+/* ============ BROWSE FILTERS / SORT / CHIPS ============ */
+const F = { cat:"ALL", q:"", seller:"", min:"", max:"", from:"", to:"", sort:"new" };
+function filtersActive(){
+  return F.cat !== "ALL" || !!F.q || !!F.seller || F.min !== "" || F.max !== "" || !!F.from || !!F.to;
+}
+function itemMatches(it){
+  if (F.cat !== "ALL" && primaryCat(it.category) !== F.cat) return false;
+  if (F.q){
+    const hay = (String(it.title || "") + " " + String(it.shop || "") + " " + String(it.desc || "")).toLowerCase();
+    if (!hay.includes(F.q)) return false;
+  }
+  if (F.seller && !String(it.seller || "").toLowerCase().startsWith(F.seller)) return false;
+  const p = Number(it.price);
+  if (F.min !== "" && !(p >= Number(F.min))) return false;
+  if (F.max !== "" && !(p <= Number(F.max))) return false;
+  const c = Number(it.created) || 0;
+  if (F.from && c < Date.parse(F.from + "T00:00:00")) return false;
+  if (F.to && c > Date.parse(F.to + "T23:59:59.999")) return false;
+  return true;
+}
+function sortItems(arr){
+  const a = arr.slice();
+  if (F.sort === "plo") a.sort((x, y) => Number(x.price) - Number(y.price));
+  else if (F.sort === "phi") a.sort((x, y) => Number(y.price) - Number(x.price));
+  else a.sort((x, y) => (Number(y.created) || 0) - (Number(x.created) || 0)); // newest first
+  return a;
+}
+function demoItems(){
+  const out = [];
+  CATALOG.forEach(shop => shop.items.forEach(it => out.push({
+    shop: shop.shop, tag: shop.tag, title: it.name, category: it.category || "",
+    price: it.price, token: TUSDT, desc: it.desc, seller: shop.seller,
+    created: it.created || 0, demo: true
+  })));
+  return out;
+}
+function renderChips(){
+  const box = $("cat-chips"); if (!box) return;
+  const all = demoItems().concat(apiListingsCache, loadListings());
+  const counts = {}; let total = 0;
+  all.forEach(it => { const k = primaryCat(it.category); counts[k] = (counts[k] || 0) + 1; total++; });
+  box.innerHTML = "";
+  const mk = (key, label, n) => {
+    const b = document.createElement("button"); b.type = "button";
+    b.className = "chip" + (F.cat === key ? " on" : "");
+    b.textContent = label + " (" + n + ")";
+    b.onclick = () => { F.cat = key; applyFilters(); };
+    box.appendChild(b);
+  };
+  mk("ALL", "全部 All", total);
+  CATEGORIES.forEach(c => mk(c.key, c.zh + " " + c.key, counts[c.key] || 0));
+}
+function afterBrowseRender(){
+  const el = $("result-count");
+  if (el){
+    const d = demoItems().filter(itemMatches).length;
+    const a = apiListingsCache.filter(itemMatches).length;
+    const l = loadListings().filter(itemMatches).length;
+    el.textContent = "Showing 显示 " + (d + a + l) + " listings 件商品 · demo 演示目录 " + d + " · public catalog 公开目录 " + a + " · this browser 本地 " + l;
+  }
+  renderChips();
+}
+function applyFilters(){
+  renderCatalog();
+  if (apiOnline) renderApiCommunity();
+  renderCommunity();
+  renderChips();
+}
+function readFilters(){
+  F.q = $("f-q").value.trim().toLowerCase();
+  F.seller = $("f-seller").value.trim().toLowerCase();
+  F.min = $("f-min").value; F.max = $("f-max").value;
+  F.from = $("f-from").value; F.to = $("f-to").value;
+  F.sort = $("f-sort").value;
+}
+function wireFilters(){
+  ["f-q", "f-seller", "f-min", "f-max", "f-from", "f-to", "f-sort"].forEach(id => {
+    const el = $(id); if (!el) return;
+    el.addEventListener("input", () => { readFilters(); applyFilters(); });
+    el.addEventListener("change", () => { readFilters(); applyFilters(); });
+  });
+  const clr = $("btn-clear-filters");
+  if (clr) clr.onclick = () => {
+    ["f-q", "f-seller", "f-min", "f-max", "f-from", "f-to"].forEach(id => { const el = $(id); if (el) el.value = ""; });
+    const s = $("f-sort"); if (s) s.value = "new";
+    F.cat = "ALL"; readFilters(); applyFilters();
+  };
+}
+
+/* ============ OFFICIAL TEST PRODUCT (pinned) ============ */
+function renderTestProduct(){
+  const slot = $("test-slot"); if (!slot) return;
+  slot.innerHTML = "";
+  const head = document.createElement("h2");
+  head.textContent = "Official Test Product · 官方测试商品";
+  slot.appendChild(head);
+  const card = document.createElement("div"); card.className = "card";
+  card.style.border = "2px solid var(--acc2)";
+  const h = document.createElement("h3"); h.textContent = "官方测试商品 · Official Test Product"; card.appendChild(h);
+  const pr = document.createElement("div"); pr.className = "price";
+  pr.appendChild(document.createTextNode("0.1 "));
+  const sm = document.createElement("small"); sm.textContent = "tUSDT (testnet)"; pr.appendChild(sm);
+  card.appendChild(pr);
+  const lab = document.createElement("span"); lab.className = "catlab"; lab.textContent = "官方 Official · AIEA Services"; card.appendChild(lab);
+  const p = document.createElement("p");
+  p.textContent = "Try the full escrow flow with a tiny amount and build or restore reputation: +1 reputation per completed test order · test-order scoring capped at +10 points · max 1 scoring test order per day · overall reputation capped at 100. Juror eligibility counts real-trade reputation only — test points never count toward it. 用小额完整体验托管交易流程，提升或恢复信誉：完成一单信誉 +1；测试单计分上限 +10 分；每日限 1 单计分；信誉总分封顶 100。陪审员资格只认真实交易信誉，测试分不计入资格。";
+  card.appendChild(p);
+  const sp = document.createElement("p"); sp.style.fontSize = ".85rem";
+  sp.textContent = "Seller 卖家: AIEA Services (official 官方店) · " + short(DEMO_SELLER);
+  card.appendChild(sp);
+  const b = document.createElement("button"); b.textContent = "Buy with escrow 担保购买";
+  b.onclick = () => buy({ name: "Official Test Product 官方测试商品", price: 0.1 }, DEMO_SELLER, TUSDT, "tUSDT");
+  card.appendChild(b);
+  if (REFERRER){
+    const badge = document.createElement("span"); badge.className = "refbadge";
+    badge.textContent = "经推广链接购买 · Buy via a referral front-end：完成订单后返还 0.03 USDT 平台补贴";
+    card.appendChild(badge);
+    const fine = document.createElement("p");
+    fine.style.cssText = "font-size:.8rem;color:var(--mut);margin:6px 0 0";
+    fine.textContent = "返还由平台在订单完成后自动发放（主网后端执行；测试网阶段为规则展示）。The rebate is paid automatically by the platform after the order completes (executed by the mainnet back-end; on testnet this is a display of the rule only). Referrer 推广方: " + short(REFERRER);
+    card.appendChild(fine);
+  }
+  slot.appendChild(card);
+}
 
 const ESCROW_ABI = [
   "function commissionBps() view returns (uint256)",
@@ -332,6 +586,9 @@ function listingCard(l, opts){
   const sm = document.createElement("small"); sm.textContent = tokenSymbol(l.token) + " (testnet)"; pr.appendChild(sm);
   c.appendChild(pr);
   if (l.category){ const cat = document.createElement("p"); cat.textContent = "Category 类别: " + l.category; c.appendChild(cat); }
+  const lab = document.createElement("span"); lab.className = "catlab"; lab.textContent = catLabel(primaryCat(l.category)); c.appendChild(lab);
+  const meta = document.createElement("p"); meta.className = "meta";
+  meta.textContent = "Listed 上架: " + fmtRel(l.created) + " · Seller 卖家 " + short(l.seller); c.appendChild(meta);
   if (l.desc){ const p = document.createElement("p"); p.textContent = l.desc; c.appendChild(p); }
   if (l.delivery){ const p = document.createElement("p"); p.textContent = "Delivery 交付: " + l.delivery; c.appendChild(p); }
   const sp = document.createElement("p"); sp.style.fontSize = ".85rem";
@@ -371,13 +628,22 @@ function listingCard(l, opts){
 }
 function renderCommunity(){
   const root = $("community"); if (!root) return;
-  const arr = loadListings();
+  const all = loadListings();
+  const arr = sortItems(all.filter(itemMatches));
   root.innerHTML = "";
-  if (!arr.length){
+  if (!all.length){
     if (apiOnline) return; // public catalog above already covers the empty state
     const p = document.createElement("p"); p.style.color = "var(--mut)";
     p.textContent = "No community listings yet — be the first to list in the Sell section below. 暂无用户上架——在下方上架区发布你的第一个商品。";
-    root.appendChild(p); return;
+    root.appendChild(p); afterBrowseRender(); return;
+  }
+  if (!arr.length){
+    if (!apiOnline){
+      const p = document.createElement("p"); p.style.color = "var(--mut)";
+      p.textContent = "No listings match the current filters. 没有符合筛选条件的商品。";
+      root.appendChild(p);
+    }
+    afterBrowseRender(); return;
   }
   const byShop = {};
   arr.forEach(l => { (byShop[l.shop] = byShop[l.shop] || []).push(l); });
@@ -389,6 +655,7 @@ function renderCommunity(){
     byShop[shopName].forEach(l => cards.appendChild(listingCard(l, { removable: true })));
     wrap.appendChild(cards); root.appendChild(wrap);
   });
+  afterBrowseRender();
 }
 function renderShared(){
   const wrap = $("shared-wrap"); if (!wrap) return;
@@ -461,13 +728,19 @@ async function fillReputations(root){
 function renderApiCommunity(){
   const root = $("community-api"); if (!root) return;
   root.innerHTML = "";
+  const filteredApi = sortItems(apiListingsCache.filter(itemMatches));
   if (!apiListingsCache.length){
     const p = document.createElement("p"); p.style.color = "var(--mut)";
     p.textContent = "Public catalog is online — no listings yet. Be the first to publish in the Sell section below. 平台公开目录已上线，暂无商品——在下方上架区发布第一个。";
-    root.appendChild(p); return;
+    root.appendChild(p); afterBrowseRender(); return;
+  }
+  if (!filteredApi.length){
+    const p = document.createElement("p"); p.style.color = "var(--mut)";
+    p.textContent = "No listings match the current filters. 没有符合筛选条件的商品。";
+    root.appendChild(p); afterBrowseRender(); return;
   }
   const byShop = {};
-  apiListingsCache.forEach(l => { (byShop[l.shop] = byShop[l.shop] || []).push(l); });
+  filteredApi.forEach(l => { (byShop[l.shop] = byShop[l.shop] || []).push(l); });
   Object.keys(byShop).forEach(shopName => {
     const wrap = document.createElement("div"); wrap.className = "shop";
     const h = document.createElement("h3"); h.textContent = shopName; wrap.appendChild(h);
@@ -480,6 +753,7 @@ function renderApiCommunity(){
     wrap.appendChild(cards); root.appendChild(wrap);
   });
   fillReputations(root);
+  afterBrowseRender();
 }
 async function removeApiListing(l, btn){
   if (!signer || !account){ log("Connect your wallet to remove this listing. 请先连接钱包再下架。"); return; }
@@ -620,19 +894,30 @@ async function loadStatus(){
 /* ============ CATALOG ============ */
 function renderCatalog(){
   const root = $("catalog"); root.innerHTML = "";
+  const items = sortItems(demoItems().filter(itemMatches));
+  if (!items.length){
+    const p = document.createElement("p"); p.style.color = "var(--mut)";
+    p.textContent = "No listings match the current filters. 没有符合筛选条件的商品。";
+    root.appendChild(p); afterBrowseRender(); return;
+  }
+  const byShop = {};
+  items.forEach(it => { (byShop[it.shop] = byShop[it.shop] || []).push(it); });
   CATALOG.forEach(shop => {
+    const list = byShop[shop.shop];
+    if (!list || !list.length) return;
     const wrap = document.createElement("div"); wrap.className = "shop";
     wrap.innerHTML = `<h3>${shop.shop}</h3><div class="tag">${shop.tag} · seller (demo): <span class="mono">${short(shop.seller)}</span></div>`;
     const cards = document.createElement("div"); cards.className = "cards";
-    shop.items.forEach(it => {
+    list.forEach(it => {
       const c = document.createElement("div"); c.className = "card";
-      c.innerHTML = `<h3>${it.name}</h3><div class="price">${it.price} <small>tUSDT (testnet)</small></div><p>${it.desc}</p>`;
+      c.innerHTML = `<h3>${it.title}</h3><div class="price">${it.price} <small>tUSDT (testnet)</small></div><span class="catlab">${catLabel(primaryCat(it.category))}</span><p>${it.desc}</p><p class="meta">Listed 上架: ${fmtRel(it.created)} · Seller 卖家 ${short(shop.seller)}</p>`;
       const b = document.createElement("button"); b.textContent = "Buy with escrow 担保购买";
-      b.onclick = () => buy(it, shop.seller);
+      b.onclick = () => buy({ name: it.title, price: it.price }, shop.seller);
       c.appendChild(b); cards.appendChild(c);
     });
     wrap.appendChild(cards); root.appendChild(wrap);
   });
+  afterBrowseRender();
 }
 
 /* ============ WALLET ============ */
@@ -800,10 +1085,13 @@ async function loadOrders(){
 $("btn-load-orders").onclick = () => loadOrders();
 
 /* ============ INIT ============ */
+renderTestProduct();
+wireFilters();
 renderCatalog();
 initCommunity();
 renderShared();
 loadStatus();
+renderChips();
 const sellFormEl = $("sell-form");
 if (sellFormEl) sellFormEl.addEventListener("submit", onSellSubmit);
 const priceInputEl = $("f-price");
