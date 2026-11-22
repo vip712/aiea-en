@@ -108,8 +108,9 @@ footer{margin-top:56px;border-top:1px solid var(--line);padding-top:20px;color:v
   </div>
   <div id="wallet-on" class="hidden">
     <p style="margin:0">Connected 已连接：<span class="mono" id="w-addr"></span></p>
-    <p style="margin:6px 0 0"><span id="w-rep">信誉分 — · Reputation —</span> · <span id="w-juror">陪审员 · —</span></p>
+    <p style="margin:6px 0 0"><span id="w-rep">信誉分 — · Reputation —</span> · <span id="w-juror">陪审员 · —</span><button id="btn-juror" class="warn hidden" style="margin-left:10px;padding:5px 12px;font-size:.85rem"></button></p>
     <p id="w-juror-hint" class="hidden" style="margin:4px 0 0;color:var(--mut);font-size:.85rem">资格线：信誉 ≥60 且真实完成订单 ≥3 Juror line: reputation ≥60 + ≥3 completed real orders</p>
+    <p id="w-juror-err" class="hidden" style="margin:4px 0 0;color:var(--bad);font-size:.85rem"></p>
     <p style="margin:6px 0 0;color:var(--mut)">Network 网络：<span id="w-net"></span> · tUSDT: <b id="w-usdt">…</b> · tUSDC: <b id="w-usdc">…</b></p>
     <div class="btnrow">
       <button class="ghost" id="btn-refresh-bal">Refresh balances 刷新余额</button>
@@ -256,7 +257,7 @@ footer{margin-top:56px;border-top:1px solid var(--line);padding-top:20px;color:v
 "use strict";
 /* ============ CONFIG (edit catalog & addresses here) ============ */
 const ESCROW   = "0xe4eFe19E33cA24Ff7cCc24545e1415ccA6fd8D52";
-const JURY_ESCROW = "0x211EAb8A612D56f57AB6Ca4e6c1762EE5e58fE04"; // jury escrow deployment on Polygon Amoy (juror-status display only) — swap at the mainnet switch (mainnet checklist section E) together with ESCROW
+const JURY_ESCROW = "0x211EAb8A612D56f57AB6Ca4e6c1762EE5e58fE04"; // jury escrow deployment on Polygon Amoy (juror status + pool register/leave) — swap at the mainnet switch (mainnet checklist section E) together with ESCROW
 const TUSDT    = "0x8Ba408dF8c5F1D55205b1114Ba2BF36bc2B6103b";
 const TUSDC    = "0x62bF82f920fd7eBC87BD4AA86BAC6872785545f2";
 const DEMO_SELLER = "0x725E4dd45Cf7e3a6D7152776ca1798a104aDF25C"; // throwaway rehearsal wallet
@@ -507,7 +508,9 @@ const ESCROW_ABI = [
 const JURY_ABI = [
   "function jurorEligible(address) view returns (bool)",
   "function isJurorRegistered(address) view returns (bool)",
-  "function jurorBanned(address) view returns (bool)"
+  "function jurorBanned(address) view returns (bool)",
+  "function registerJuror()",
+  "function deregisterJuror()"
 ];
 const ERC20_ABI = [
   "function balanceOf(address) view returns (uint256)",
@@ -945,12 +948,23 @@ async function ensureNetwork(){
   }
   return true;
 }
-/* Reputation score (backend API) + juror status (jury escrow, read-only) shown
-   next to the connected address. Display only — no registration action here.
-   Both sources degrade independently to "—" and never block the page. */
+/* Reputation score (backend API) + juror status (jury escrow) shown next to
+   the connected address. The same on-chain read also drives the register /
+   leave-pool button (#btn-juror): it only appears when the state allows an
+   action. Both sources degrade independently to "—" and never block the page. */
+let jurorMode = null;   // "register" | "leave" | null — action the juror button currently offers
+let jurorTxBusy = false; // a register/leave transaction is in flight
+function setJurorBtn(mode, label, cls){
+  if (jurorTxBusy) return; // never stomp the in-flight "Sending…" state
+  jurorMode = mode;
+  const btn = $("btn-juror");
+  if (!mode){ btn.classList.add("hidden"); return; }
+  btn.className = cls; btn.textContent = label; btn.disabled = false;
+}
 async function refreshJurorRep(){
   if (!account || !signer) return;
   const acct = account; // bail out if the account switched while requests were in flight
+  if (!jurorTxBusy){ const errEl0 = $("w-juror-err"); errEl0.classList.add("hidden"); errEl0.textContent = ""; }
   try{
     const r = await apiFetch("/api/reputation/" + acct, {}, 4000);
     if (!r.ok) throw new Error("HTTP " + r.status);
@@ -970,17 +984,50 @@ async function refreshJurorRep(){
     if (banned || !elig){
       jurorEl.textContent = "陪审员 · 暂无资格 Juror · not eligible";
       jurorEl.style.color = "var(--mut)";
+      setJurorBtn(null);
       if (!banned) hintEl.classList.remove("hidden"); // show the qualification line only when it is still reachable
     } else if (reg){
       jurorEl.textContent = "陪审员 · 已入池 Juror · in pool";
       jurorEl.style.color = "var(--ok)";
+      setJurorBtn("leave", "退出陪审池 · Leave pool", "ghost");
     } else {
       jurorEl.textContent = "有陪审员资格 · 尚未报名入池 Eligible juror · not registered yet";
       jurorEl.style.color = "var(--acc2)";
+      setJurorBtn("register", "报名入池 · Register as juror", "warn");
     }
   }catch(e){
     if (account !== acct) return;
     jurorEl.textContent = "陪审员 · —"; jurorEl.style.color = ""; hintEl.classList.add("hidden");
+    setJurorBtn(null);
+  }
+}
+/* Register / leave the juror pool on the jury escrow contract. On success the
+   status line and button are re-read from chain; on failure a short bilingual
+   error is shown under the juror line and the button is restored. */
+async function onJurorAction(){
+  if (!account || !signer || jurorTxBusy || !jurorMode) return;
+  const mode = jurorMode, acct = account;
+  const btn = $("btn-juror"), errEl = $("w-juror-err");
+  jurorTxBusy = true;
+  btn.disabled = true; btn.textContent = "发送中… · Sending…";
+  errEl.classList.add("hidden"); errEl.textContent = "";
+  try{
+    const jury = new ethers.Contract(JURY_ESCROW, JURY_ABI, signer);
+    const tx = mode === "register" ? await jury.registerJuror() : await jury.deregisterJuror();
+    await tx.wait();
+    jurorTxBusy = false;
+    if (account === acct) refreshJurorRep(); // flips the status line and the button to the new state
+  }catch(e){
+    jurorTxBusy = false;
+    if (account !== acct) return;
+    btn.disabled = false;
+    btn.textContent = mode === "register" ? "报名入池 · Register as juror" : "退出陪审池 · Leave pool";
+    let reason = "";
+    if (e && (e.code === "ACTION_REJECTED" || e.code === 4001)) reason = " · 已取消签名 Signature rejected";
+    else if (e && e.reason) reason = " · " + String(e.reason).slice(0, 120);
+    else if (e && e.shortMessage) reason = " · " + String(e.shortMessage).slice(0, 120);
+    errEl.textContent = (mode === "register" ? "报名失败，请重试" : "退出失败，请重试") + " · Failed, please retry" + reason;
+    errEl.classList.remove("hidden");
   }
 }
 async function refreshWalletUI(){
@@ -1130,6 +1177,7 @@ async function loadOrders(){
   }catch(e){ root.innerHTML = "<p style='color:var(--bad)'>Failed to load orders: " + (e.shortMessage || e.message) + "</p>"; }
 }
 $("btn-load-orders").onclick = () => loadOrders();
+$("btn-juror").onclick = () => onJurorAction();
 
 /* ============ INIT ============ */
 renderTestProduct();
@@ -1151,6 +1199,9 @@ if (window.ethereum){
     if (!accs || !accs.length){
       // wallet locked / disconnected — hide the wallet panel and its rep/juror display
       signer = null; account = null; escrowWrite = null;
+      jurorMode = null; jurorTxBusy = false;
+      const jb = $("btn-juror"); jb.classList.add("hidden"); jb.disabled = false;
+      const je = $("w-juror-err"); je.classList.add("hidden"); je.textContent = "";
       $("wallet-on").classList.add("hidden"); $("wallet-none").classList.remove("hidden");
       return;
     }
