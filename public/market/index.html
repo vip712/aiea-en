@@ -111,7 +111,7 @@ footer{margin-top:56px;border-top:1px solid var(--line);padding-top:20px;color:v
     <p style="margin:6px 0 0"><span id="w-rep">信誉分 — · Reputation —</span> · <span id="w-juror">陪审员 · —</span><button id="btn-juror" class="warn hidden" style="margin-left:10px;padding:5px 12px;font-size:.85rem"></button></p>
     <p id="w-juror-hint" class="hidden" style="margin:4px 0 0;color:var(--mut);font-size:.85rem">资格线：信誉 ≥60 且真实完成订单 ≥3 Juror line: reputation ≥60 + ≥3 completed real orders</p>
     <p id="w-juror-err" class="hidden" style="margin:4px 0 0;color:var(--bad);font-size:.85rem"></p>
-    <p style="margin:6px 0 0;color:var(--mut)">Network 网络：<span id="w-net"></span> · tUSDT: <b id="w-usdt">…</b> · tUSDC: <b id="w-usdc">…</b></p>
+    <p style="margin:6px 0 0;color:var(--mut)">Network 网络：<span id="w-net"></span> · POL: <b id="w-pol">…</b> · tUSDT: <b id="w-usdt">…</b> · tUSDC: <b id="w-usdc">…</b></p>
     <div class="btnrow">
       <button class="ghost" id="btn-refresh-bal">Refresh balances 刷新余额</button>
       <button class="ghost" id="btn-switch">Switch to Polygon Amoy 切换网络</button>
@@ -532,6 +532,7 @@ function log(msg){
   el.textContent += msg + "\n"; el.scrollTop = el.scrollHeight;
 }
 const fmt = (wei, dec=6) => Number(ethers.formatUnits(wei, dec)).toLocaleString(undefined,{maximumFractionDigits:6});
+const fmtPol = wei => Number(ethers.formatEther(wei)).toLocaleString(undefined,{maximumFractionDigits:4});
 const fmtDate = ts => ts && Number(ts) > 0 ? new Date(Number(ts)*1000).toLocaleString() : "—";
 const short = a => a ? a.slice(0,6) + "…" + a.slice(-4) : "";
 const txLink = h => `${SCAN}/tx/${h}`;
@@ -1016,7 +1017,7 @@ async function onJurorAction(){
     const tx = mode === "register" ? await jury.registerJuror() : await jury.deregisterJuror();
     await tx.wait();
     jurorTxBusy = false;
-    if (account === acct) refreshJurorRep(); // flips the status line and the button to the new state
+    if (account === acct){ refreshJurorRep(); refreshBalances(); } // status flips to the new state; the tx also spent POL gas
   }catch(e){
     jurorTxBusy = false;
     if (account !== acct) return;
@@ -1030,6 +1031,33 @@ async function onJurorAction(){
     errEl.classList.remove("hidden");
   }
 }
+/* ============ BALANCES (POL + tUSDT + tUSDC) ============ */
+let balInFlight = false; // a balance read is already running — skip overlapping rounds
+let balTimer = null;     // 15s safety-net refresh while a wallet is connected
+async function refreshBalances(){
+  if (!account || balInFlight) return;
+  balInFlight = true;
+  const acct = account; // bail out if the account switched while reads were in flight
+  try{
+    const usdt = new ethers.Contract(TUSDT, ERC20_ABI, readProvider);
+    const usdc = new ethers.Contract(TUSDC, ERC20_ABI, readProvider);
+    const [pol, b1, b2] = await Promise.all([
+      readProvider.getBalance(acct), usdt.balanceOf(acct), usdc.balanceOf(acct)
+    ]);
+    if (account !== acct) return;
+    $("w-pol").textContent = fmtPol(pol);
+    $("w-usdt").textContent = fmt(b1);
+    $("w-usdc").textContent = fmt(b2);
+  }catch(e){ /* RPC jitter: silently keep the last shown values, never zero them out */ }
+  finally{ balInFlight = false; }
+}
+function startBalanceTimer(){
+  stopBalanceTimer();
+  balTimer = setInterval(() => { refreshBalances(); }, 15000);
+}
+function stopBalanceTimer(){
+  if (balTimer){ clearInterval(balTimer); balTimer = null; }
+}
 async function refreshWalletUI(){
   if (!account) return;
   $("w-addr").textContent = account;
@@ -1037,10 +1065,7 @@ async function refreshWalletUI(){
   const sa = $("sell-addr"); if (sa) sa.textContent = account;
   const net = await signer.provider.getNetwork();
   $("w-net").textContent = Number(net.chainId) === CHAIN_ID ? "Polygon Amoy (80002)" : "Wrong network — chain " + net.chainId;
-  const usdt = new ethers.Contract(TUSDT, ERC20_ABI, readProvider);
-  const usdc = new ethers.Contract(TUSDC, ERC20_ABI, readProvider);
-  const [b1, b2] = await Promise.all([usdt.balanceOf(account), usdc.balanceOf(account)]);
-  $("w-usdt").textContent = fmt(b1); $("w-usdc").textContent = fmt(b2);
+  await refreshBalances();
   try{ const role = await escrowRead.ARBITRATOR_ROLE(); isArbitrator = await escrowRead.hasRole(role, account); }
   catch(e){ isArbitrator = false; }
 }
@@ -1057,6 +1082,7 @@ async function connect(){
   $("btn-load-orders").disabled = false;
   log("Wallet connected: " + account);
   await refreshWalletUI(); loadOrders();
+  startBalanceTimer(); // keep POL / tUSDT / tUSDC fresh while connected
   if (apiOnline) renderApiCommunity(); // reveal Remove buttons on my own API listings
 }
 $("btn-connect").onclick = () => connect().catch(e => log("Connect failed 连接失败: " + (e.shortMessage || e.message)));
@@ -1199,6 +1225,7 @@ if (window.ethereum){
     if (!accs || !accs.length){
       // wallet locked / disconnected — hide the wallet panel and its rep/juror display
       signer = null; account = null; escrowWrite = null;
+      stopBalanceTimer();
       jurorMode = null; jurorTxBusy = false;
       const jb = $("btn-juror"); jb.classList.add("hidden"); jb.disabled = false;
       const je = $("w-juror-err"); je.classList.add("hidden"); je.textContent = "";
@@ -1211,6 +1238,7 @@ if (window.ethereum){
       account = await signer.getAddress();
       escrowWrite = new ethers.Contract(ESCROW, ESCROW_ABI, signer);
       await refreshWalletUI(); loadOrders();
+      startBalanceTimer();
       if (apiOnline) renderApiCommunity();
     }catch(e){ location.reload(); } // fall back to the old full-reset behaviour on any surprise
   });
